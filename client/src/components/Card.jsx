@@ -9,21 +9,51 @@ export function isRedCard(card) {
   return card.suit === 'H' || card.suit === 'D';
 }
 
+// 3 < 4 < ... < K < A < 2 < JOKER — naturals ascend normally, wilds group at the end.
+const RANK_ORDER = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'JOKER'];
+const SUIT_ORDER = ['S', 'H', 'D', 'C'];
+
+export function sortHand(cards) {
+  return [...cards].sort((a, b) => {
+    const rankDiff = RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank);
+    if (rankDiff !== 0) return rankDiff;
+    return SUIT_ORDER.indexOf(a.suit) - SUIT_ORDER.indexOf(b.suit);
+  });
+}
+
 export function Card({ card, selected, onClick, disabled }) {
-  const red = card.rank === 'JOKER' ? false : isRedCard(card);
+  const red = card.rank !== 'JOKER' && isRedCard(card);
+  const symbol = card.rank === 'JOKER' ? '★' : SUIT_SYMBOL[card.suit];
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="card"
-      style={{
-        color: red ? '#b91c1c' : '#111827',
-        borderColor: selected ? '#2563eb' : '#9ca3af',
-        background: selected ? '#dbeafe' : '#ffffff',
-      }}
+      className={`playing-card${selected ? ' playing-card--selected' : ''}`}
+      style={{ color: red ? 'var(--card-red)' : 'var(--card-black)' }}
     >
-      {cardLabel(card)}
+      {card.rank === 'JOKER' ? (
+        <span className="playing-card__joker">JOKER</span>
+      ) : (
+        <>
+          <span className="playing-card__corner playing-card__corner--top">
+            {card.rank}
+            <br />
+            {symbol}
+          </span>
+          <span className="playing-card__pip">{symbol}</span>
+          <span className="playing-card__corner playing-card__corner--bottom">
+            {card.rank}
+            <br />
+            {symbol}
+          </span>
+        </>
+      )}
     </button>
   );
+}
+
+export function CardBack({ small }) {
+  return <div className={`playing-card playing-card__back${small ? ' playing-card--small' : ''}`} />;
 }

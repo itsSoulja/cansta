@@ -45,40 +45,47 @@ export function buildGroups(cards, wildAssignments, pointValues, pileCard = null
   });
 }
 
-export function StagingTray({ groups, total, threshold, needsThreshold, onToggleCard, onCycleWild, hiddenIds }) {
+export function StagingTray({ groups, total, threshold, needsThreshold, myMelds = {}, onToggleCard, onCycleWild, hiddenIds }) {
   if (groups.length === 0) return null;
 
   return (
     <div className="tray">
       <div className="tray__groups">
-        {groups.map((group, gi) => (
-          <div className={`tray__group${group.shortOfThree || group.tooManyWilds ? ' tray__group--warn' : ''}`} key={group.rank ?? `w${gi}`}>
-            <div className="tray__cards">
-              {group.all.map((card, i) => (
-                <div className="tray__slot" key={card.id} style={{ '--i': i }}>
-                  <Card
-                    card={card}
-                    size="small"
-                    selected
-                    className={hiddenIds.has(card.id) ? 'is-flying' : ''}
-                    onClick={() => (isWildCard(card) && groups.length > 1 ? onCycleWild(card) : onToggleCard(card.id))}
-                  />
-                </div>
-              ))}
-              {group.fromPile && (
-                <div className="tray__slot tray__slot--pile" style={{ '--i': group.all.length }} title="from the discard pile">
-                  <Card card={group.fromPile} size="small" static />
-                </div>
-              )}
+        {groups.map((group, gi) => {
+          // Two cards of a rank you already have down are not a broken meld —
+          // they are an addition waiting for you to click that meld.
+          const isAddition = group.rank ? Boolean(myMelds[group.rank]) : false;
+          const short = group.shortOfThree && !isAddition;
+          return (
+            <div className={`tray__group${short || group.tooManyWilds ? ' tray__group--warn' : ''}`} key={group.rank ?? `w${gi}`}>
+              <div className="tray__cards">
+                {group.all.map((card, i) => (
+                  <div className="tray__slot" key={card.id} style={{ '--i': i }}>
+                    <Card
+                      card={card}
+                      size="small"
+                      selected
+                      className={hiddenIds.has(card.id) ? 'is-flying' : ''}
+                      onClick={() => (isWildCard(card) && groups.length > 1 ? onCycleWild(card) : onToggleCard(card.id))}
+                    />
+                  </div>
+                ))}
+                {group.fromPile && (
+                  <div className="tray__slot tray__slot--pile" style={{ '--i': group.all.length }} title="from the discard pile">
+                    <Card card={group.fromPile} size="small" static />
+                  </div>
+                )}
+              </div>
+              <span className="tray__meta">
+                {group.rank ? `${group.rank}s` : 'wild'} · {group.points}
+                {group.fromPile && <b> +pile</b>}
+                {isAddition && <b> click your {group.rank}s to add</b>}
+                {short && <em> needs 3+</em>}
+                {!short && group.tooManyWilds && <em> too many wilds</em>}
+              </span>
             </div>
-            <span className="tray__meta">
-              {group.rank ? `${group.rank}s` : 'wild'} · {group.points}
-              {group.fromPile && <b> +pile</b>}
-              {group.shortOfThree && <em> needs 3+</em>}
-              {!group.shortOfThree && group.tooManyWilds && <em> too many wilds</em>}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {needsThreshold && (

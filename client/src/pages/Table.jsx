@@ -108,7 +108,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   };
 
   const addToMeld = (rank) => {
-    if (!inAction || selected.length === 0) return;
+    if (!isYourTurn || selected.length === 0) return;
     sendAction({ type: 'MELD', cardIds: selected, targetRank: rank }, (res) => {
       if (res.ok) clearSelection();
     });
@@ -199,7 +199,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             melds={game.melds}
             team={game.yourTeam}
             hiddenIds={hiddenIds}
-            addable={inAction && selected.length > 0}
+            addable={isYourTurn && selected.length > 0}
             onAddTo={addToMeld}
             emptyLabel={opened ? 'no melds yet' : 'your melds will lay down here'}
           />
@@ -211,6 +211,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
           total={stagedTotal}
           threshold={game.openingThreshold}
           needsThreshold={!opened}
+          myMelds={game.melds[game.yourTeam] ?? {}}
           onToggleCard={toggleCard}
           onCycleWild={cycleWild}
           hiddenIds={hiddenIds}
@@ -243,6 +244,9 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             <button className="btn btn--ghost" onClick={clearSelection}>
               Clear
             </button>
+          )}
+          {inDraw && selected.length > 0 && (
+            <span className="action-bar__note">draw or take the pile first — then a meld will take these</span>
           )}
           {isYourTurn && !game.yourTeamHasCanasta && (
             <span className="action-bar__note">a canasta is needed before you can go out</span>

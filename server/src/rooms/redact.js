@@ -1,8 +1,21 @@
 import { currentPlayerId, teamOf, teamHasCanasta } from '../game/state.js';
 import { discardPickupBlocker } from '../game/engine.js';
+import { initialMeldThreshold } from '../game/scoring.js';
+import { POINT_VALUES } from '../game/card.js';
 
 function cardBack(count) {
   return { count };
+}
+
+// Events drive animations, so they must respect the same secrecy as the state:
+// a card drawn from the stock is face down to everyone but the drawer, as is
+// the card dealt to replace a red three. Melds, discards and the red threes
+// themselves are laid face up and stay public.
+function redactEvent(event, viewerId) {
+  if (event.playerId === viewerId) return event;
+  if (event.type === 'DRAW_STOCK') return { ...event, card: null };
+  if (event.type === 'RED_THREE' && event.replacement) return { ...event, replacement: null };
+  return event;
 }
 
 export function redactStateFor(state, viewerId) {
@@ -19,6 +32,9 @@ export function redactStateFor(state, viewerId) {
       : discardPickupBlocker(state, viewerTeam, topDiscard);
 
   return {
+    openingThreshold: initialMeldThreshold(state.scores[viewerTeam]),
+    pointValues: POINT_VALUES,
+    events: (state.events ?? []).map((e) => redactEvent(e, viewerId)),
     canTakeDiscard: pileBlockedReason === null,
     takeDiscardReason: pileBlockedReason,
     yourTeamHasCanasta: teamHasCanasta(state, viewerTeam),

@@ -13,12 +13,19 @@ function generateCode() {
   return code;
 }
 
+const SEATS_BY_MODE = { '1v1': 2, '1v1v1': 3, '1v1v1v1': 4, '2v2': 4 };
+
+export function isValidMode(mode) {
+  return Object.hasOwn(SEATS_BY_MODE, mode);
+}
+
 function seatCount(mode) {
-  return mode === '2v2' ? 4 : 2;
+  return SEATS_BY_MODE[mode];
 }
 
 export function createRoom({ mode, packCount, hostSocketId, hostName }) {
   const code = generateCode();
+  // Heads-up always uses two packs; every larger table lets the host choose.
   const effectivePackCount = mode === '1v1' ? 2 : packCount;
   const room = {
     code,

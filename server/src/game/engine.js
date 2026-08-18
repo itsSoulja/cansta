@@ -1,7 +1,7 @@
 import { isRedThree, isBlackThree, isWild } from './card.js';
 import { meldShape, meldValue } from './meld.js';
 import { computeRoundScore, initialMeldThreshold } from './scoring.js';
-import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound } from './state.js';
+import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound, pushEvent } from './state.js';
 
 function extractCards(hand, cardIds) {
   const remaining = hand.slice();
@@ -49,6 +49,12 @@ function finalizeRound(state, { wentOutTeam, concealedGoOut = false }) {
   state.concealedGoOut = didGoOut ? concealedGoOut : false;
   state.lastRoundSummary = { roundScores, wentOutTeam: didGoOut ? wentOutTeam : null, concealedGoOut };
 
+  pushEvent(state, {
+    type: 'ROUND_END',
+    wentOutTeam: state.wentOutTeam,
+    concealedGoOut: state.concealedGoOut,
+  });
+
   const winner = state.teams.find((t) => state.scores[t] >= 5000);
   if (winner !== undefined) {
     state.matchOver = true;
@@ -63,9 +69,11 @@ function drawAndAbsorbRedThrees(state, playerId) {
     const card = state.stock.pop();
     if (isRedThree(card)) {
       state.redThrees[team].push(card);
+      pushEvent(state, { type: 'RED_THREE', source: 'draw', playerId, team, card, replacement: null });
       continue;
     }
     state.hands[playerId].push(card);
+    pushEvent(state, { type: 'DRAW_STOCK', playerId, card });
     return true;
   }
 }
@@ -132,9 +140,25 @@ function handleTakeDiscard(state, { playerId, cardIds = [] }) {
     }
   }
 
+  pushEvent(state, {
+    type: 'TAKE_DISCARD',
+    playerId,
+    team,
+    topCard,
+    pileCount: state.discard.length,
+  });
   state.hands[playerId] = newHand;
   state.discard = [];
   state.melds[team][shape.rank] = shape;
+  pushEvent(state, {
+    type: 'MELD',
+    playerId,
+    team,
+    rank: shape.rank,
+    cards: shape.cards,
+    added: [...extracted.cards, topCard],
+    opening: false,
+  });
   state.hasMeldedThisRound[team] = true;
   state.discardBlockedFor = null;
   state.phase = 'action';
@@ -182,7 +206,18 @@ function handleOpenMeld(state, { playerId, groups = [] }) {
   }
 
   state.hands[playerId] = remaining;
-  for (const shape of shapes) state.melds[team][shape.rank] = shape;
+  for (const shape of shapes) {
+    state.melds[team][shape.rank] = shape;
+    pushEvent(state, {
+      type: 'MELD',
+      playerId,
+      team,
+      rank: shape.rank,
+      cards: shape.cards,
+      added: shape.cards,
+      opening: true,
+    });
+  }
   state.initialMeldMade[team] = true;
   state.hasMeldedThisRound[team] = true;
 
@@ -229,6 +264,15 @@ function handleMeld(state, { playerId, cardIds = [], targetRank }) {
   state.hands[playerId] = extracted.remaining;
   state.melds[team][shape.rank] = shape;
   state.hasMeldedThisRound[team] = true;
+  pushEvent(state, {
+    type: 'MELD',
+    playerId,
+    team,
+    rank: shape.rank,
+    cards: shape.cards,
+    added: extracted.cards,
+    opening: false,
+  });
 
   if (wouldEmptyHand) {
     const concealed = !state.turnStartMelded[team];
@@ -257,6 +301,7 @@ function handleDiscard(state, { playerId, cardId }) {
   newHand.splice(idx, 1);
   state.hands[playerId] = newHand;
   state.discard.push(card);
+  pushEvent(state, { type: 'DISCARD', playerId, team, card });
 
   if (wouldEmptyHand) {
     const concealed = !state.turnStartMelded[team];
@@ -271,6 +316,7 @@ function handleDiscard(state, { playerId, cardId }) {
 }
 
 export function applyAction(state, action) {
+  state.events = [];
   switch (action.type) {
     case 'DRAW_STOCK':
       return handleDrawStock(state, action);

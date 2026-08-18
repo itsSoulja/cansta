@@ -4,6 +4,7 @@ import { meldShape, canastaBonus } from './meld.js';
 import { initialMeldThreshold, computeRoundScore } from './scoring.js';
 import { createMatch, teamOf } from './state.js';
 import { applyAction } from './engine.js';
+import { redactStateFor } from '../rooms/redact.js';
 
 let idCounter = 0;
 function card(rank, suit) {
@@ -336,5 +337,115 @@ describe('taking the discard pile', () => {
     const res = applyAction(state, { type: 'MELD', playerId: p1, cardIds: [drawn.id], targetRank: '9' });
     expect(res.ok).toBe(true);
     expect(state.melds[team]['9'].cards).toHaveLength(4);
+  });
+});
+
+describe('free-for-all modes', () => {
+  it('gives every seat its own team in 1v1v1 and 1v1v1v1', () => {
+    const three = createMatch({ mode: '1v1v1', packCount: 2, playerIds: ['a', 'b', 'c'] });
+    expect(three.teams).toEqual([0, 1, 2]);
+    expect(three.teamsByPlayer).toEqual({ a: 0, b: 1, c: 2 });
+
+    const four = createMatch({ mode: '1v1v1v1', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    expect(four.teams).toEqual([0, 1, 2, 3]);
+    expect(Object.keys(four.scores)).toHaveLength(4);
+  });
+
+  it('still pairs seats across the table in 2v2', () => {
+    const state = createMatch({ mode: '2v2', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    expect(state.teamsByPlayer).toEqual({ a: 0, b: 1, c: 0, d: 1 });
+  });
+
+  it('cycles the turn through all three seats and blocks the next player with a black 3', () => {
+    const state = createMatch({ mode: '1v1v1', packCount: 2, playerIds: ['a', 'b', 'c'] });
+    state.hands.a = [card('3', 'S'), card('K', 'H')];
+    state.stock.push(card('9', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'a' });
+    const res = applyAction(state, {
+      type: 'DISCARD',
+      playerId: 'a',
+      cardId: state.hands.a.find((c) => c.rank === '3').id,
+    });
+    expect(res.ok).toBe(true);
+    expect(state.turnOrder[state.currentTurnIndex]).toBe('b');
+    expect(state.discardBlockedFor).toBe('b');
+  });
+});
+
+describe('animation events', () => {
+  let state;
+
+  beforeEach(() => {
+    state = createMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+  });
+
+  it('reports every red 3 pulled out of the opening deal', () => {
+    const dealt = state.events.filter((e) => e.type === 'RED_THREE');
+    const totalRedThrees = state.teams.reduce((n, t) => n + state.redThrees[t].length, 0);
+    expect(dealt).toHaveLength(totalRedThrees);
+    for (const event of dealt) {
+      expect(event.source).toBe('deal');
+      expect(event.card.rank).toBe('3');
+      expect(['H', 'D']).toContain(event.card.suit);
+    }
+    expect(state.events.every((e, i) => e.seq === i + 1)).toBe(true);
+  });
+
+  it('reports a red 3 drawn from the stock before the card that replaces it', () => {
+    state.stock = [card('9', 'H'), card('3', 'D')]; // pop order: 3D first, then 9H
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
+    expect(state.events.map((e) => e.type)).toEqual(['RED_THREE', 'DRAW_STOCK']);
+    expect(state.events[0].source).toBe('draw');
+    expect(state.events[1].card.rank).toBe('9');
+  });
+
+  it('clears the batch on each action so only fresh events are broadcast', () => {
+    state.stock.push(card('K', 'C'), card('Q', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
+    const first = state.events;
+    expect(first).toHaveLength(1);
+    applyAction(state, { type: 'DISCARD', playerId: 'p1', cardId: state.hands.p1[0].id });
+    expect(state.events.map((e) => e.type)).toEqual(['DISCARD']);
+    expect(state.events[0].seq).toBeGreaterThan(first[0].seq);
+  });
+
+  it('emits a meld event carrying the laid-down cards', () => {
+    state.hands.p1 = [card('A', 'S'), card('A', 'H'), card('A', 'D'), card('K', 'C')];
+    state.stock.push(card('K', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
+    applyAction(state, {
+      type: 'OPEN_MELD',
+      playerId: 'p1',
+      groups: [state.hands.p1.filter((c) => c.rank === 'A').map((c) => c.id)],
+    });
+    const meldEvent = state.events.find((e) => e.type === 'MELD');
+    expect(meldEvent.opening).toBe(true);
+    expect(meldEvent.rank).toBe('A');
+    expect(meldEvent.cards).toHaveLength(3);
+  });
+});
+
+describe('redaction', () => {
+  it('hides a drawn card from everyone but the drawer, and keeps melds public', () => {
+    const state = createMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+    state.stock.push(card('K', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
+
+    const mine = redactStateFor(state, 'p1').events.find((e) => e.type === 'DRAW_STOCK');
+    const theirs = redactStateFor(state, 'p2').events.find((e) => e.type === 'DRAW_STOCK');
+    expect(mine.card.rank).toBe('K');
+    expect(theirs.card).toBeNull();
+
+    expect(redactStateFor(state, 'p2').hands.p1).toEqual({ count: state.hands.p1.length });
+  });
+
+  it("hides the card dealt to replace someone else's red 3", () => {
+    const state = createMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+    state.events = [];
+    state.stock = [card('9', 'H'), card('3', 'D')];
+    applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
+    const theirs = redactStateFor(state, 'p2').events;
+    expect(theirs.find((e) => e.type === 'RED_THREE').card.rank).toBe('3');
+    expect(theirs.find((e) => e.type === 'DRAW_STOCK').card).toBeNull();
   });
 });

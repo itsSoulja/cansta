@@ -3,17 +3,22 @@ import { isRedThree, isBlackThree, isWild } from './card.js';
 
 const HAND_SIZE = 14;
 
+// Every mode except 2v2 is a free-for-all: each seat is its own team, so the
+// scoring, opening-threshold and go-out rules all apply per player unchanged.
 function assignTeams(mode, seatOrder) {
   const teamsByPlayer = {};
-  if (mode === '1v1') {
-    teamsByPlayer[seatOrder[0]] = 0;
-    teamsByPlayer[seatOrder[1]] = 1;
-  } else {
-    seatOrder.forEach((pid, idx) => {
-      teamsByPlayer[pid] = idx % 2;
-    });
-  }
+  seatOrder.forEach((pid, idx) => {
+    teamsByPlayer[pid] = mode === '2v2' ? idx % 2 : idx;
+  });
   return teamsByPlayer;
+}
+
+// Appends an animation event. The client replays these to move cards between
+// piles instead of snapping to the new snapshot; seq lets it ignore events it
+// has already played. Purely decorative — state is always a full snapshot.
+export function pushEvent(state, event) {
+  state.eventSeq += 1;
+  state.events.push({ seq: state.eventSeq, ...event });
 }
 
 function dealRound({ packCount, playerIds, teamsByPlayer, teams, rng }) {
@@ -27,18 +32,29 @@ function dealRound({ packCount, playerIds, teamsByPlayer, teams, rng }) {
   }
 
   const redThrees = Object.fromEntries(teams.map((t) => [t, []]));
+  const redThreeEvents = [];
   for (const pid of playerIds) {
     const hand = hands[pid];
     let i = 0;
     while (i < hand.length) {
       if (isRedThree(hand[i])) {
-        redThrees[teamsByPlayer[pid]].push(hand[i]);
+        const three = hand[i];
+        redThrees[teamsByPlayer[pid]].push(three);
         const replacement = deck.pop();
         if (replacement) {
           hand[i] = replacement;
         } else {
           hand.splice(i, 1);
         }
+        // The replacement is dealt face down, so only its owner may see it.
+        redThreeEvents.push({
+          type: 'RED_THREE',
+          source: 'deal',
+          playerId: pid,
+          team: teamsByPlayer[pid],
+          card: three,
+          replacement: replacement ?? null,
+        });
       } else {
         i++;
       }
@@ -57,7 +73,7 @@ function dealRound({ packCount, playerIds, teamsByPlayer, teams, rng }) {
     break;
   }
 
-  return { hands, stock: deck, discard, redThrees };
+  return { hands, stock: deck, discard, redThrees, redThreeEvents };
 }
 
 export function createMatch({ mode, packCount, playerIds, rng = Math.random }) {
@@ -88,6 +104,8 @@ export function createMatch({ mode, packCount, playerIds, rng = Math.random }) {
     matchOver: false,
     winner: null,
     lastRoundSummary: null,
+    events: [],
+    eventSeq: 0,
   };
 
   startRound(state, rng);
@@ -116,6 +134,8 @@ export function startRound(state, rng = Math.random) {
   state.roundOver = false;
   state.wentOutTeam = null;
   state.concealedGoOut = false;
+  state.events = [];
+  for (const event of dealt.redThreeEvents) pushEvent(state, event);
 }
 
 export function currentPlayerId(state) {

@@ -21,6 +21,16 @@ export function isBlackThree(card) {
   return card.rank === '3' && !isJoker(card) && (card.suit === 'S' || card.suit === 'C');
 }
 
+// Lookup the client uses to total a staged meld. Red/black 3s differ, so they
+// get their own keys; pointValue() stays the single source of truth for both.
+export const POINT_VALUES = {
+  JOKER: 50,
+  A: 20, '2': 20,
+  K: 10, Q: 10, J: 10, '10': 10, '9': 10, '8': 10,
+  '7': 5, '6': 5, '5': 5, '4': 5,
+  '3red': 100, '3black': 5,
+};
+
 export function pointValue(card) {
   if (isJoker(card)) return 50;
   if (card.rank === 'A' || card.rank === '2') return 20;

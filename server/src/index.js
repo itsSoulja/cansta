@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
-import { createRoom, joinRoom, getRoomBySocket, leaveRoom, startGame } from './rooms/roomManager.js';
+import { createRoom, joinRoom, getRoomBySocket, leaveRoom, startGame, isValidMode } from './rooms/roomManager.js';
 import { redactStateFor } from './rooms/redact.js';
 import { applyAction, startNextRound } from './game/engine.js';
 
@@ -51,8 +51,8 @@ function broadcastState(room) {
 
 io.on('connection', (socket) => {
   socket.on('create_room', ({ mode, packCount, name } = {}, cb = () => {}) => {
-    if (mode !== '1v1' && mode !== '2v2') return cb({ ok: false, error: 'Invalid mode' });
-    if (mode === '2v2' && ![2, 3, 4].includes(packCount)) return cb({ ok: false, error: 'Invalid pack count' });
+    if (!isValidMode(mode)) return cb({ ok: false, error: 'Invalid mode' });
+    if (mode !== '1v1' && ![2, 3, 4].includes(packCount)) return cb({ ok: false, error: 'Invalid pack count' });
     const room = createRoom({ mode, packCount, hostSocketId: socket.id, hostName: name || 'Host' });
     socket.join(room.code);
     cb({ ok: true, code: room.code });

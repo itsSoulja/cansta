@@ -1,252 +1,256 @@
 import { useMemo, useState } from 'react';
-import { Card, CardBack, sortHand } from '../components/Card.jsx';
-import { MeldArea } from '../components/MeldArea.jsx';
+import { CenterPiles } from '../components/CenterPiles.jsx';
+import { HandFan } from '../components/HandFan.jsx';
+import { MeldArea, RedThreeZone } from '../components/MeldArea.jsx';
 import { ScorePanel } from '../components/ScorePanel.jsx';
+import { Seat } from '../components/Seat.jsx';
+import { StagingTray, buildGroups } from '../components/StagingTray.jsx';
+import { FlightLayer } from '../anim/FlightLayer.jsx';
+import { useCardFlights } from '../anim/useCardFlights.js';
 
-function nameFor(lobby, playerId) {
-  const seat = lobby?.seats.find((s) => s && s.socketId === playerId);
-  return seat ? seat.name : playerId;
-}
+// Where each opponent sits, by how many of them there are. You are always at
+// the bottom, so the others spread evenly across the rest of the table.
+const SEAT_POSITIONS = {
+  1: ['top'],
+  2: ['upper-left', 'upper-right'],
+  3: ['left', 'top', 'right'],
+};
 
 export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const [selected, setSelected] = useState([]);
-  const [stagedGroups, setStagedGroups] = useState([]);
-  const [targetRank, setTargetRank] = useState(null);
+  const [wildAssignments, setWildAssignments] = useState({});
+
+  const nameFor = (playerId) => lobby?.seats.find((s) => s && s.socketId === playerId)?.name ?? 'Player';
+
+  const { flights, hiddenIds, legMs } = useCardFlights({ events: game.events, myId });
 
   const isYourTurn = game.currentPlayerId === myId;
   const opened = game.initialMeldMade[game.yourTeam];
-  const sortedHand = useMemo(() => sortHand(game.yourHand), [game.yourHand]);
-  const otherPlayers = game.playerIds.filter((pid) => pid !== myId);
-
   const inDraw = isYourTurn && game.phase === 'draw';
   const inAction = isYourTurn && game.phase === 'action';
-  const pileClickable = inDraw && game.canTakeDiscard;
 
-  const toggleCard = (id) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
+  const selectedCards = useMemo(
+    () => selected.map((id) => game.yourHand.find((c) => c.id === id)).filter(Boolean),
+    [selected, game.yourHand],
+  );
+  const groups = useMemo(
+    () => buildGroups(selectedCards, wildAssignments, game.pointValues),
+    [selectedCards, wildAssignments, game.pointValues],
+  );
+  const stagedTotal = groups.reduce((sum, g) => sum + g.points, 0);
+
+  // Seat the opponents in turn order starting from the player after you, so the
+  // turn visibly travels around the table.
+  const opponents = useMemo(() => {
+    const order = game.playerIds;
+    const mine = order.indexOf(myId);
+    return order.slice(mine + 1).concat(order.slice(0, mine));
+  }, [game.playerIds, myId]);
+
+  // In 2v2 a team shares one meld area: yours sits in front of you, theirs in
+  // front of the first opponent on that team.
+  const meldSeatByTeam = useMemo(() => {
+    const map = {};
+    for (const team of game.teams) {
+      map[team] = team === game.yourTeam ? myId : game.playerIds.find((pid) => game.teamsByPlayer[pid] === team);
+    }
+    return map;
+  }, [game.teams, game.yourTeam, game.playerIds, game.teamsByPlayer, myId]);
 
   const clearSelection = () => {
     setSelected([]);
-    setTargetRank(null);
+    setWildAssignments({});
   };
 
-  const drawStock = () => {
-    if (!inDraw) return;
-    sendAction({ type: 'DRAW_STOCK' });
+  const toggleCard = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const cycleWild = (card) => {
+    const ranks = groups.filter((g) => g.rank).map((g) => g.rank);
+    if (ranks.length < 2) return;
+    const current = wildAssignments[card.id] ?? groups.find((g) => g.wilds.some((w) => w.id === card.id))?.rank;
+    const next = ranks[(ranks.indexOf(current) + 1) % ranks.length];
+    setWildAssignments((prev) => ({ ...prev, [card.id]: next }));
   };
 
-  const takeDiscard = () => {
-    if (!pileClickable || selected.length < 2) return;
-    sendAction({ type: 'TAKE_DISCARD', cardIds: selected }, () => clearSelection());
+  const drawStock = () => inDraw && sendAction({ type: 'DRAW_STOCK' });
+
+  const canDiscardHere = inAction && selected.length === 1;
+  const canTakePile = inDraw && game.canTakeDiscard;
+
+  const onPileClick = () => {
+    if (canDiscardHere) return sendAction({ type: 'DISCARD', cardId: selected[0] }, clearSelection);
+    if (canTakePile && selected.length >= 2) sendAction({ type: 'TAKE_DISCARD', cardIds: selected }, clearSelection);
   };
 
-  const addGroup = () => {
-    if (selected.length < 1) return;
-    setStagedGroups((prev) => [...prev, selected]);
-    setSelected([]);
+  // Lays every staged group down at once when opening; afterwards each group
+  // goes down as its own meld, one after the other.
+  const layDown = () => {
+    if (!groups.length) return;
+    if (!opened) {
+      return sendAction({ type: 'OPEN_MELD', groups: groups.map((g) => g.all.map((c) => c.id)) }, (res) => {
+        if (res.ok) clearSelection();
+      });
+    }
+    const queue = groups.map((g) => g.all.map((c) => c.id));
+    const sendNext = (i) => {
+      if (i >= queue.length) return clearSelection();
+      sendAction({ type: 'MELD', cardIds: queue[i] }, (res) => (res.ok ? sendNext(i + 1) : null));
+    };
+    sendNext(0);
   };
 
-  const removeGroup = (idx) => setStagedGroups((prev) => prev.filter((_, i) => i !== idx));
-
-  const submitOpenMeld = () =>
-    sendAction({ type: 'OPEN_MELD', groups: stagedGroups }, (res) => {
-      if (res.ok) setStagedGroups([]);
+  const addToMeld = (rank) => {
+    if (!inAction || selected.length === 0) return;
+    sendAction({ type: 'MELD', cardIds: selected, targetRank: rank }, (res) => {
+      if (res.ok) clearSelection();
     });
-
-  const meld = () =>
-    sendAction({ type: 'MELD', cardIds: selected, targetRank: targetRank || undefined }, () => clearSelection());
-
-  const discard = () => {
-    if (selected.length !== 1) return;
-    sendAction({ type: 'DISCARD', cardId: selected[0] }, () => clearSelection());
   };
 
-  const stagedTotal = useMemo(() => stagedGroups.reduce((sum, g) => sum + g.length, 0), [stagedGroups]);
-
-  if (game.matchOver) {
-    return (
-      <div className="screen-center">
-        <h1>Match over!</h1>
-        <p>{game.winner === game.yourTeam ? 'Your team wins!' : 'The other team wins.'}</p>
-        <ScorePanel game={game} />
-      </div>
-    );
-  }
-
-  if (game.roundOver) {
+  if (game.matchOver || game.roundOver) {
     const isHost = lobby?.hostSocketId === myId;
     const summary = game.lastRoundSummary;
+    const won = game.winner === game.yourTeam;
     return (
-      <div className="screen-center">
-        <h1>Round {game.round} over</h1>
-        {summary?.wentOutTeam != null ? (
-          <p>
-            {summary.wentOutTeam === game.yourTeam ? 'Your team' : 'The other team'} went out
-            {summary.concealedGoOut ? ' with a concealed hand!' : '.'}
-          </p>
-        ) : (
-          <p>The stock ran out — round ends with no one going out.</p>
-        )}
-        <ScorePanel game={game} />
-        {isHost ? (
-          <button className="primary" onClick={nextRound}>
-            Start next round
-          </button>
-        ) : (
-          <p>Waiting for host to start the next round...</p>
-        )}
+      <div className="table-stage table-stage--summary">
+        <div className="summary-card">
+          <h1 className="summary-card__title">
+            {game.matchOver ? (won ? 'You win the match' : 'Match over') : `Round ${game.round} complete`}
+          </h1>
+          {!game.matchOver &&
+            (summary?.wentOutTeam != null ? (
+              <p className="summary-card__lede">
+                {summary.wentOutTeam === game.yourTeam ? 'You went out' : `${nameFor(game.currentPlayerId)}'s side went out`}
+                {summary.concealedGoOut ? ' — concealed, +500.' : '.'}
+              </p>
+            ) : (
+              <p className="summary-card__lede">The stock ran dry — nobody went out.</p>
+            ))}
+          <ScorePanel game={game} nameFor={nameFor} />
+          {!game.matchOver &&
+            (isHost ? (
+              <button className="btn btn--primary" onClick={nextRound}>
+                Deal the next round
+              </button>
+            ) : (
+              <p className="summary-card__wait">Waiting for the host to deal…</p>
+            ))}
+        </div>
       </div>
     );
   }
 
+  const positions = SEAT_POSITIONS[opponents.length] ?? [];
+
   return (
-    <div className="game-shell">
-      <header className="game-header">
-        <span className="game-header__title">Cansta · Round {game.round}</span>
-        <ScorePanel game={game} compact />
+    <div className="table-stage">
+      <div className="table-glow" />
+      <div className="table-rays" />
+
+      <header className="table-top">
+        <span className="table-top__brand">
+          Cansta <span className="table-top__round">Round {game.round}</span>
+        </span>
+        <ScorePanel game={game} nameFor={nameFor} />
       </header>
 
-      <div className={`turn-banner ${isYourTurn ? 'turn-banner--you' : 'turn-banner--them'}`}>
-        {isYourTurn ? 'YOUR TURN' : `${nameFor(lobby, game.currentPlayerId)}'s turn`}
-        {' · '}
-        {game.phase === 'draw' ? 'draw from the stock or take the discard pile' : 'meld or discard'}
-        {error && <span className="turn-banner__error">{error}</span>}
-      </div>
+      {opponents.map((pid, i) => {
+        const team = game.teamsByPlayer[pid];
+        const partner = team === game.yourTeam;
+        return (
+          <Seat
+            key={pid}
+            position={positions[i]}
+            name={{ playerId: pid, label: nameFor(pid) }}
+            count={game.hands[pid]?.count ?? 0}
+            active={game.currentPlayerId === pid}
+            team={team}
+            melds={game.melds}
+            redThrees={game.redThrees}
+            hiddenIds={hiddenIds}
+            showMelds={meldSeatByTeam[team] === pid}
+            teamLabel={partner ? 'partner' : null}
+          />
+        );
+      })}
 
-      <main className="game-main">
-        <section className="table-felt">
-          <div className="opponent-row">
-            {otherPlayers.map((pid) => {
-              const handInfo = game.hands[pid];
-              const count = typeof handInfo === 'object' && 'count' in handInfo ? handInfo.count : 0;
-              const sameTeam = game.teamsByPlayer[pid] === game.yourTeam;
-              return (
-                <div
-                  key={pid}
-                  className={`opponent-panel${game.currentPlayerId === pid ? ' opponent-panel--active' : ''}`}
-                >
-                  <div className="opponent-panel__name">
-                    <span className={`avatar-circle${game.currentPlayerId === pid ? ' avatar-circle--active' : ''}`}>
-                      {nameFor(lobby, pid).slice(0, 1).toUpperCase()}
-                    </span>
-                    {nameFor(lobby, pid)}
-                    {sameTeam ? ' (partner)' : ''}
-                  </div>
-                  <div className="opponent-panel__backs">
-                    {Array.from({ length: Math.min(count, 14) }).map((_, i) => (
-                      <CardBack key={i} small />
-                    ))}
-                  </div>
-                  <div className="pile-label">{count} cards</div>
-                </div>
-              );
-            })}
-          </div>
+      <CenterPiles
+        game={game}
+        canDraw={inDraw}
+        canTakePile={canTakePile}
+        canDiscardHere={canDiscardHere}
+        onDrawStock={drawStock}
+        onPileClick={onPileClick}
+        hiddenIds={hiddenIds}
+        selectedCount={selected.length}
+      />
 
-          <div className="center-row">
-            <div className={`pile${inDraw ? ' pile--clickable' : ''}`} onClick={drawStock}>
-              <CardBack large />
-              <div className="pile-label">Stock: {game.stockCount}</div>
-              {inDraw && <div className="pile-hint">click to draw</div>}
-            </div>
-
-            <div
-              className={`pile${pileClickable ? ' pile--clickable pile--available' : ''}`}
-              onClick={takeDiscard}
-              title={game.takeDiscardReason ?? 'You can take this pile'}
-            >
-              {game.topDiscard ? (
-                <Card card={game.topDiscard} disabled large />
-              ) : (
-                <div className="playing-card playing-card--large" style={{ opacity: 0.3 }} />
-              )}
-              <div className="pile-label">Discard ({game.discardCount})</div>
-              {pileClickable && (
-                <div className="pile-hint">
-                  {selected.length >= 2 ? 'click to take pile' : 'select 2+ matching cards first'}
-                </div>
-              )}
-              {inDraw && !pileClickable && game.takeDiscardReason && (
-                <div className="pile-hint pile-hint--blocked">{game.takeDiscardReason}</div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="meld-panel">
+      <div className={`you-zone${isYourTurn ? ' you-zone--active' : ''}`}>
+        <div className="you-zone__table">
           <MeldArea
             melds={game.melds}
-            teams={game.teams}
-            yourTeam={game.yourTeam}
-            targetRank={targetRank}
-            onPickTarget={setTargetRank}
+            team={game.yourTeam}
+            hiddenIds={hiddenIds}
+            addable={inAction && selected.length > 0}
+            onAddTo={addToMeld}
+            emptyLabel={opened ? 'no melds yet' : 'your melds will lay down here'}
           />
-        </section>
-      </main>
+          <RedThreeZone team={game.yourTeam} cards={game.redThrees[game.yourTeam] ?? []} hiddenIds={hiddenIds} />
+        </div>
 
-      <footer className="game-footer">
+        <StagingTray
+          groups={groups}
+          total={stagedTotal}
+          threshold={game.openingThreshold}
+          needsThreshold={!opened}
+          onToggleCard={toggleCard}
+          onCycleWild={cycleWild}
+          hiddenIds={hiddenIds}
+        />
+
         <div className="action-bar">
-          {!isYourTurn && <span className="action-bar__wait">Waiting for your turn…</span>}
+          <span className={`action-bar__turn${isYourTurn ? ' is-you' : ''}`}>
+            {isYourTurn ? (
+              game.phase === 'draw' ? (
+                'Your turn — draw from the stock or take the pile'
+              ) : (
+                'Your turn — meld or discard'
+              )
+            ) : (
+              `${nameFor(game.currentPlayerId)} is playing…`
+            )}
+          </span>
 
-          {inAction && !opened && (
-            <>
-              <button onClick={addGroup} disabled={selected.length < 1}>
-                Stage group ({stagedTotal} staged)
-              </button>
-              {stagedGroups.map((g, i) => (
-                <span key={i} className="staged-chip">
-                  {g.length} cards <button onClick={() => removeGroup(i)}>✕</button>
-                </span>
-              ))}
-              <button className="primary" onClick={submitOpenMeld} disabled={stagedTotal < 3}>
-                Submit opening meld
-              </button>
-            </>
-          )}
-
-          {inAction && opened && (
-            <button onClick={meld} disabled={selected.length < 1}>
-              {targetRank ? `Add to ${targetRank}s` : 'Meld selected'}
+          {inAction && selected.length > 0 && (
+            <button className="btn btn--primary" onClick={layDown}>
+              {opened ? `Lay down ${groups.length > 1 ? `${groups.length} melds` : 'meld'}` : 'Open with these'}
             </button>
           )}
-
-          {inAction && (
-            <button onClick={discard} disabled={selected.length !== 1}>
-              Discard selected
+          {inAction && selected.length === 1 && (
+            <button className="btn" onClick={() => sendAction({ type: 'DISCARD', cardId: selected[0] }, clearSelection)}>
+              Discard
             </button>
           )}
-
+          {selected.length > 0 && (
+            <button className="btn btn--ghost" onClick={clearSelection}>
+              Clear
+            </button>
+          )}
           {isYourTurn && !game.yourTeamHasCanasta && (
-            <span className="action-bar__note">You need a canasta before you can go out</span>
+            <span className="action-bar__note">a canasta is needed before you can go out</span>
           )}
+          {error && <span className="action-bar__error">{error}</span>}
         </div>
 
-        {selected.length > 0 && (
-          <div className="selected-tray">
-            <span className="selected-tray__label">Selected ({selected.length}) — click to return</span>
-            {selected.map((id) => {
-              const c = game.yourHand.find((x) => x.id === id);
-              if (!c) return null;
-              return <Card key={id} card={c} selected onClick={() => toggleCard(id)} />;
-            })}
-          </div>
-        )}
+        <HandFan
+          cards={game.yourHand}
+          myId={myId}
+          hiddenIds={hiddenIds}
+          selectedIds={selected}
+          onToggle={toggleCard}
+        />
+      </div>
 
-        <div className="hand-fan">
-          {sortedHand
-            .filter((c) => !selected.includes(c.id))
-            .map((c, i, arr) => {
-              const mid = (arr.length - 1) / 2;
-              const rotate = (i - mid) * Math.min(3, 40 / Math.max(arr.length, 1));
-              return (
-                <div key={c.id} className="hand-fan__card" style={{ transform: `rotate(${rotate}deg)` }}>
-                  <Card card={c} onClick={() => toggleCard(c.id)} />
-                </div>
-              );
-            })}
-        </div>
-      </footer>
+      <FlightLayer flights={flights} legMs={legMs} />
     </div>
   );
 }

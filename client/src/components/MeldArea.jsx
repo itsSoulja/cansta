@@ -1,44 +1,71 @@
-import { cardLabel } from './Card.jsx';
+import { Card } from './Card.jsx';
+import { useAnchor } from '../anim/anchors.jsx';
 
-export function MeldArea({ melds, teams, yourTeam, targetRank, onPickTarget }) {
+// One melded rank, cards overlapping like a real stack laid on the table.
+function MeldGroup({ team, rank, shape, hiddenIds, onClick, addable, compact }) {
+  const anchor = useAnchor(`meld:${team}:${rank}`);
+  const classes = [
+    'meld-group',
+    shape.isCanasta ? (shape.isNatural ? 'meld-group--natural' : 'meld-group--mixed') : '',
+    addable ? 'meld-group--addable' : '',
+    compact ? 'meld-group--compact' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-      {teams.map((team) => {
-        const ranks = Object.keys(melds[team] ?? {});
-        const isYours = team === yourTeam;
-        return (
-          <div key={team} style={{ minWidth: 200 }}>
-            <h4>{isYours ? 'Your team' : 'Opponent team'} melds</h4>
-            {ranks.length === 0 && <p style={{ color: '#6b7280' }}>None yet</p>}
-            {ranks.map((rank) => {
-              const shape = melds[team][rank];
-              const selectable = isYours;
-              const active = targetRank === rank;
-              return (
-                <div
-                  key={rank}
-                  onClick={selectable ? () => onPickTarget(active ? null : rank) : undefined}
-                  style={{
-                    cursor: selectable ? 'pointer' : 'default',
-                    border: active ? '2px solid #2563eb' : '1px solid #d1d5db',
-                    borderRadius: 6,
-                    padding: '0.4rem 0.6rem',
-                    marginBottom: 6,
-                    background: shape.isCanasta ? (shape.isNatural ? '#fef3c7' : '#e5e7eb') : '#f9fafb',
-                  }}
-                >
-                  <strong>{rank}</strong>{' '}
-                  <span style={{ color: '#6b7280' }}>
-                    ({shape.cards.length} card{shape.cards.length === 1 ? '' : 's'}
-                    {shape.isCanasta ? `, ${shape.isNatural ? 'natural' : 'mixed'} canasta` : ''})
-                  </span>
-                  <div style={{ fontSize: '0.85rem' }}>{shape.cards.map(cardLabel).join(' ')}</div>
-                </div>
-              );
-            })}
+    <div className={classes} ref={anchor} onClick={addable ? onClick : undefined} title={addable ? `Add to the ${rank}s` : undefined}>
+      <div className="meld-group__cards">
+        {shape.cards.map((card, i) => (
+          <div className="meld-group__slot" key={card.id} style={{ '--i': i }}>
+            <Card card={card} size={compact ? 'tiny' : 'small'} static className={hiddenIds.has(card.id) ? 'is-flying' : ''} />
           </div>
-        );
-      })}
+        ))}
+      </div>
+      {shape.isCanasta && (
+        <span className="meld-group__badge">{shape.isNatural ? 'CANASTA' : 'CANASTA ·'} {shape.cards.length}</span>
+      )}
+    </div>
+  );
+}
+
+export function MeldArea({ melds, team, hiddenIds, onAddTo, addable, compact, emptyLabel }) {
+  const ranks = Object.keys(melds[team] ?? {}).sort(
+    (a, b) => (melds[team][b]?.cards.length ?? 0) - (melds[team][a]?.cards.length ?? 0),
+  );
+
+  if (ranks.length === 0) {
+    return <div className="meld-area meld-area--empty">{emptyLabel ?? 'no melds yet'}</div>;
+  }
+
+  return (
+    <div className={`meld-area${compact ? ' meld-area--compact' : ''}`}>
+      {ranks.map((rank) => (
+        <MeldGroup
+          key={rank}
+          team={team}
+          rank={rank}
+          shape={melds[team][rank]}
+          hiddenIds={hiddenIds}
+          addable={addable}
+          compact={compact}
+          onClick={() => onAddTo?.(rank)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Red 3s live off to the side of their owner's seat, face up, out of the way.
+export function RedThreeZone({ team, cards, hiddenIds }) {
+  const anchor = useAnchor(`redthree:${team}`);
+  return (
+    <div className={`red-three-zone${cards.length ? ' is-filled' : ''}`} ref={anchor}>
+      {cards.map((card, i) => (
+        <div className="red-three-zone__slot" key={card.id} style={{ '--i': i }}>
+          <Card card={card} size="tiny" static className={hiddenIds.has(card.id) ? 'is-flying' : ''} />
+        </div>
+      ))}
     </div>
   );
 }

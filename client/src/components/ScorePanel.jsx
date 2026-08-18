@@ -1,30 +1,22 @@
-import { cardLabel } from './Card.jsx';
-
-export function ScorePanel({ game, compact }) {
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', flexWrap: 'wrap' }}>
-        {game.teams.map((team) => (
-          <span key={team}>
-            <strong>{team === game.yourTeam ? 'You' : 'Them'}:</strong> {game.scores[team]}
-            {game.redThrees[team]?.length > 0 && ` · ${game.redThrees[team].length} red 3s`}
-            {!game.initialMeldMade[team] && ' · not opened'}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
+export function ScorePanel({ game, nameFor }) {
   return (
-    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-      {game.teams.map((team) => (
-        <div key={team} style={{ minWidth: 180 }}>
-          <h4>{team === game.yourTeam ? 'Your team' : 'Opponent team'}</h4>
-          <div>Score: {game.scores[team]}</div>
-          <div>Opened: {game.initialMeldMade[team] ? 'Yes' : 'No'}</div>
-          <div>Red 3s: {(game.redThrees[team] ?? []).map(cardLabel).join(' ') || 'none'}</div>
-        </div>
-      ))}
+    <div className="scoreboard">
+      {game.teams.map((team) => {
+        const members = game.playerIds.filter((pid) => game.teamsByPlayer[pid] === team);
+        const label = team === game.yourTeam ? 'You' : members.map(nameFor).join(' & ');
+        return (
+          <div key={team} className={`scoreboard__team${team === game.yourTeam ? ' is-you' : ''}`}>
+            <span className="scoreboard__name">{label}</span>
+            <span className="scoreboard__score">{game.scores[team]}</span>
+            <span className="scoreboard__tags">
+              {!game.initialMeldMade[team] && <span className="tag">not opened</span>}
+              {(game.redThrees[team] ?? []).length > 0 && (
+                <span className="tag tag--red">{game.redThrees[team].length} red 3</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

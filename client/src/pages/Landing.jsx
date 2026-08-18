@@ -1,62 +1,83 @@
 import { useState } from 'react';
 
+const MODES = [
+  { id: '1v1', label: '1v1', blurb: 'Head to head', seats: 2 },
+  { id: '1v1v1', label: '1v1v1', blurb: 'Three-way free-for-all', seats: 3 },
+  { id: '1v1v1v1', label: '1v1v1v1', blurb: 'Four-way free-for-all', seats: 4 },
+  { id: '2v2', label: '2v2', blurb: 'Partners, across the table', seats: 4 },
+];
+
 export function Landing({ onCreate, onJoin, error }) {
   const [name, setName] = useState('');
   const [mode, setMode] = useState('1v1');
   const [packCount, setPackCount] = useState(2);
   const [joinCode, setJoinCode] = useState('');
 
+  const named = name.trim().length > 0;
+
   return (
-    <div style={{ maxWidth: 420, margin: '4rem auto', fontFamily: 'sans-serif' }}>
-      <h1>Cansta</h1>
-      {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
+    <div className="portal">
+      <div className="portal__glow" />
+      <div className="portal__inner">
+        <h1 className="portal__title">Cansta</h1>
+        <p className="portal__sub">Canasta, dealt fast and played with friends.</p>
 
-      <label style={{ display: 'block', marginBottom: 12 }}>
-        Your name
-        <input value={name} onChange={(e) => setName(e.target.value)} style={{ display: 'block', width: '100%' }} />
-      </label>
+        {error && <p className="portal__error">{error}</p>}
 
-      <fieldset style={{ marginBottom: 16 }}>
-        <legend>Create a game</legend>
-        <label>
-          <input type="radio" checked={mode === '1v1'} onChange={() => setMode('1v1')} /> 1v1
-        </label>{' '}
-        <label>
-          <input type="radio" checked={mode === '2v2'} onChange={() => setMode('2v2')} /> 2v2
+        <label className="field">
+          <span className="field__label">Your name</span>
+          <input className="field__input" value={name} onChange={(e) => setName(e.target.value)} placeholder="who's playing?" />
         </label>
-        {mode === '2v2' && (
-          <div style={{ marginTop: 8 }}>
-            Packs of cards:{' '}
-            <select value={packCount} onChange={(e) => setPackCount(Number(e.target.value))}>
-              <option value={2}>2 (standard)</option>
-              <option value={3}>3</option>
-              <option value={4}>4</option>
-            </select>
-          </div>
-        )}
-        <button
-          style={{ marginTop: 12 }}
-          disabled={!name.trim()}
-          onClick={() => onCreate({ mode, packCount, name: name.trim() })}
-        >
-          Create Game
-        </button>
-      </fieldset>
 
-      <fieldset>
-        <legend>Join a game</legend>
-        <input
-          placeholder="Room code"
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-        />
-        <button
-          disabled={!name.trim() || !joinCode.trim()}
-          onClick={() => onJoin({ code: joinCode.trim(), name: name.trim() })}
-        >
-          Join Game
-        </button>
-      </fieldset>
+        <section className="panel">
+          <h2 className="panel__title">Start a table</h2>
+          <div className="mode-grid">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`mode-card${mode === m.id ? ' is-active' : ''}`}
+                onClick={() => setMode(m.id)}
+              >
+                <span className="mode-card__label">{m.label}</span>
+                <span className="mode-card__blurb">{m.blurb}</span>
+                <span className="mode-card__seats">{m.seats} players</span>
+              </button>
+            ))}
+          </div>
+
+          {mode !== '1v1' && (
+            <label className="field field--inline">
+              <span className="field__label">Packs of cards</span>
+              <select className="field__input" value={packCount} onChange={(e) => setPackCount(Number(e.target.value))}>
+                <option value={2}>2 — standard</option>
+                <option value={3}>3 — longer round</option>
+                <option value={4}>4 — marathon</option>
+              </select>
+            </label>
+          )}
+
+          <button className="btn btn--primary btn--wide" disabled={!named} onClick={() => onCreate({ mode, packCount, name: name.trim() })}>
+            Deal me in
+          </button>
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Join a table</h2>
+          <div className="join-row">
+            <input
+              className="field__input field__input--code"
+              placeholder="CODE"
+              maxLength={5}
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            />
+            <button className="btn" disabled={!named || !joinCode.trim()} onClick={() => onJoin({ code: joinCode.trim(), name: name.trim() })}>
+              Join
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

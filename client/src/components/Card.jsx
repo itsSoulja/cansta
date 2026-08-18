@@ -21,7 +21,7 @@ export function sortHand(cards) {
   });
 }
 
-export function Card({ card, selected, onClick, disabled }) {
+export function Card({ card, selected, onClick, disabled, large, style }) {
   const red = card.rank !== 'JOKER' && isRedCard(card);
   const symbol = card.rank === 'JOKER' ? '★' : SUIT_SYMBOL[card.suit];
 
@@ -30,8 +30,8 @@ export function Card({ card, selected, onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`playing-card${selected ? ' playing-card--selected' : ''}`}
-      style={{ color: red ? 'var(--card-red)' : 'var(--card-black)' }}
+      className={`playing-card${selected ? ' playing-card--selected' : ''}${large ? ' playing-card--large' : ''}`}
+      style={{ color: red ? 'var(--card-red)' : 'var(--card-black)', ...style }}
     >
       {card.rank === 'JOKER' ? (
         <span className="playing-card__joker">JOKER</span>
@@ -54,6 +54,11 @@ export function Card({ card, selected, onClick, disabled }) {
   );
 }
 
-export function CardBack({ small }) {
-  return <div className={`playing-card playing-card__back${small ? ' playing-card--small' : ''}`} />;
+export function CardBack({ small, large, style }) {
+  return (
+    <div
+      className={`playing-card playing-card__back${small ? ' playing-card--small' : ''}${large ? ' playing-card--large' : ''}`}
+      style={style}
+    />
+  );
 }

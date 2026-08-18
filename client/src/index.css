@@ -79,6 +79,18 @@ button.primary:hover:not(:disabled) {
   height: 58px;
 }
 
+.playing-card--large {
+  width: 84px;
+  height: 120px;
+  font-size: 1.8rem;
+}
+.playing-card--large .playing-card__corner {
+  font-size: 0.9rem;
+}
+.playing-card--large .playing-card__pip {
+  font-size: 2.2rem;
+}
+
 .playing-card__corner {
   position: absolute;
   font-size: 0.7rem;
@@ -169,6 +181,27 @@ button.primary:hover:not(:disabled) {
 .opponent-panel__name {
   font-weight: 700;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.avatar-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #facc15;
+  color: #422006;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.avatar-circle--active {
+  box-shadow: 0 0 0 3px #fff;
 }
 .opponent-panel__backs {
   display: flex;
@@ -194,4 +227,38 @@ button.primary:hover:not(:disabled) {
   font-size: 0.8rem;
   margin-top: 4px;
   color: #d1fae5;
+}
+
+/* ---- Hand fan + selection tray ---- */
+
+.hand-fan {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 20px 4px 8px;
+  min-height: 110px;
+}
+.hand-fan__card {
+  margin-left: -22px;
+  transition: transform 0.15s ease;
+}
+.hand-fan__card:first-child {
+  margin-left: 0;
+}
+.hand-fan__card:hover {
+  z-index: 5;
+}
+
+.selected-tray {
+  background: #eff6ff;
+  border: 2px dashed #93c5fd;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.selected-tray__label {
+  font-size: 0.85rem;
+  color: #1e40af;
+  font-weight: 600;
+  margin-bottom: 6px;
 }

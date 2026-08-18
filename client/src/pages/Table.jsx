@@ -117,6 +117,9 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
                 className={`opponent-panel${game.currentPlayerId === pid ? ' opponent-panel--active' : ''}`}
               >
                 <div className="opponent-panel__name">
+                  <span className={`avatar-circle${game.currentPlayerId === pid ? ' avatar-circle--active' : ''}`}>
+                    {nameFor(lobby, pid).slice(0, 1).toUpperCase()}
+                  </span>
                   {nameFor(lobby, pid)} {sameTeam ? '(partner)' : ''}
                 </div>
                 <div className="opponent-panel__backs">
@@ -132,11 +135,15 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
 
         <div className="center-row">
           <div>
-            <CardBack />
+            <CardBack large />
             <div className="pile-label">Stock: {game.stockCount}</div>
           </div>
           <div>
-            {game.topDiscard ? <Card card={game.topDiscard} disabled /> : <div className="playing-card" style={{ opacity: 0.3 }} />}
+            {game.topDiscard ? (
+              <Card card={game.topDiscard} disabled large />
+            ) : (
+              <div className="playing-card playing-card--large" style={{ opacity: 0.3 }} />
+            )}
             <div className="pile-label">
               Discard ({game.discardCount}){game.discardBlockedFor === myId && ' — blocked for you'}
             </div>
@@ -148,11 +155,32 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
         <MeldArea melds={game.melds} teams={game.teams} yourTeam={game.yourTeam} targetRank={targetRank} onPickTarget={setTargetRank} />
       </div>
 
+      {selected.length > 0 && (
+        <div className="selected-tray">
+          <div className="selected-tray__label">Selected ({selected.length}) — click a card to put it back in your hand</div>
+          <div className="hand-row">
+            {selected.map((id) => {
+              const c = game.yourHand.find((x) => x.id === id);
+              if (!c) return null;
+              return <Card key={id} card={c} selected onClick={() => toggleCard(id)} />;
+            })}
+          </div>
+        </div>
+      )}
+
       <h3 style={{ marginBottom: 4 }}>Your hand</h3>
-      <div className="hand-row">
-        {sortedHand.map((c) => (
-          <Card key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => toggleCard(c.id)} />
-        ))}
+      <div className="hand-fan">
+        {sortedHand
+          .filter((c) => !selected.includes(c.id))
+          .map((c, i, arr) => {
+            const mid = (arr.length - 1) / 2;
+            const rotate = (i - mid) * Math.min(4, 60 / Math.max(arr.length, 1));
+            return (
+              <div key={c.id} className="hand-fan__card" style={{ transform: `rotate(${rotate}deg)` }}>
+                <Card card={c} onClick={() => toggleCard(c.id)} />
+              </div>
+            );
+          })}
       </div>
 
       {isYourTurn && (

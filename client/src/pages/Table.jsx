@@ -180,6 +180,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
       <CenterPiles
         game={game}
         canDraw={inDraw}
+        yourTurn={isYourTurn}
         canTakePile={canTakePile}
         canDiscardHere={canDiscardHere}
         onDrawStock={drawStock}

@@ -3,7 +3,7 @@ import { useAnchor } from '../anim/anchors.jsx';
 
 // The stock and the discard pile. Whichever one you may take from pulses
 // slowly on your turn, so you always know the table is waiting on you.
-export function CenterPiles({ game, canDraw, canTakePile, canDiscardHere, onDrawStock, onPileClick, hiddenIds, selectedCount }) {
+export function CenterPiles({ game, canDraw, yourTurn, canTakePile, canDiscardHere, onDrawStock, onPileClick, hiddenIds, selectedCount }) {
   const stockAnchor = useAnchor('stock');
   const discardAnchor = useAnchor('discard');
   const topHidden = game.topDiscard && hiddenIds.has(game.topDiscard.id);
@@ -47,7 +47,7 @@ export function CenterPiles({ game, canDraw, canTakePile, canDiscardHere, onDraw
             {selectedCount > 0 ? 'click to take the pile' : 'select the cards to meld it with'}
           </span>
         )}
-        {canDraw && !canTakePile && game.takeDiscardReason && (
+        {yourTurn && !canTakePile && !canDiscardHere && game.takeDiscardReason && (
           <span className="pile__hint pile__hint--blocked">{game.takeDiscardReason}</span>
         )}
       </div>

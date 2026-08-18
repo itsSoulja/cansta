@@ -62,7 +62,7 @@ These are **decorative only** — state remains a full snapshot and correctness 
 
 ### Redaction is also the client's rule oracle
 
-`rooms/redact.js` builds the per-viewer payload: other players' hands collapse to `{ count }`, and it precomputes `canTakeDiscard` / `takeDiscardReason` by calling `discardPickupBlocker` — the *same* function the engine uses to validate. That's why `discardPickupBlocker` is exported from `engine.js`. Keep it that way: the client highlights the pile and shows the blocking reason without owning a copy of the rules.
+`rooms/redact.js` builds the per-viewer payload: other players' hands collapse to `{ count }`, and it precomputes `canTakeDiscard` / `takeDiscardReason` by calling `discardTakeBlocker` — the *same* function the engine uses to validate. That's why `discardTakeBlocker` is exported from `engine.js`. Keep it that way: the client highlights the pile and shows the blocking reason without owning a copy of the rules. It covers the turn and phase gates too (`discardPickupBlocker` under it holds only the rules about the card itself), so a pile the viewer cannot take always carries a sentence saying why.
 
 If you add a derived hint for the UI, compute it in `redact.js` from a shared engine helper rather than reimplementing it in React.
 
@@ -70,7 +70,7 @@ If you add a derived hint for the UI, compute it in `redact.js` from a shared en
 
 These are choices, not bugs — check with the user before "fixing" them:
 
-- Taking the discard pile requires your side to have already opened, and is refused if your side already melds the top card's rank. This avoids modeling a pile pickup against the opening threshold.
+- Taking the discard pile requires your side to have already opened. This avoids modeling a pile pickup against the opening threshold. The top card folds into an existing meld of its rank when there is one.
 - Only the top discard card is melded on pickup; the rest goes to hand.
 - Black 3s only block the next player's pickup (`discardBlockedFor`); there is no full freeze mechanic.
 

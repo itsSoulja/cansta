@@ -106,19 +106,27 @@ export function discardPickupBlocker(state, team, topCard) {
   return null;
 }
 
+// Every reason the pile is closed to a player at this moment: whose turn it is
+// and whether they have already drawn, then the rules about the card itself.
+// The engine validates the action with this and redact.js reports the same
+// sentence to the client, so a pile that cannot be taken always says why.
+export function discardTakeBlocker(state, playerId) {
+  const turnError = validateTurn(state, playerId);
+  if (turnError) return turnError.error;
+  if (state.phase !== 'draw') return 'You already drew — the pile is taken instead of drawing, at the start of a turn';
+  if (state.discardBlockedFor === playerId) return 'The discard pile is blocked for you this turn';
+  return discardPickupBlocker(state, teamOf(state, playerId), state.discard[state.discard.length - 1]);
+}
+
 // Simplification: taking the discard pile is only available once a side has
 // already opened, to avoid modeling multi-meld staging against the opening
 // threshold for a pile pickup.
 function handleTakeDiscard(state, { playerId, cardIds = [] }) {
-  const err = validateTurn(state, playerId);
-  if (err) return err;
-  if (state.phase !== 'draw') return { ok: false, error: 'You have already drawn this turn' };
-  if (state.discardBlockedFor === playerId) return { ok: false, error: 'The discard pile is blocked for you this turn' };
+  const blocked = discardTakeBlocker(state, playerId);
+  if (blocked) return { ok: false, error: blocked };
 
   const team = teamOf(state, playerId);
   const topCard = state.discard[state.discard.length - 1];
-  const takeError = discardPickupBlocker(state, team, topCard);
-  if (takeError) return { ok: false, error: takeError };
 
   const extracted = extractCards(state.hands[playerId], cardIds);
   if (!extracted) return { ok: false, error: 'Invalid cards selected' };

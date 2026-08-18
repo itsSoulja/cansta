@@ -274,6 +274,31 @@ describe('taking the discard pile', () => {
     state.initialMeldMade[teamOf(state, p1)] = true;
   });
 
+  it('closes the pile once the player has drawn, and says so to that player', () => {
+    state.discard = [card('9', 'C')];
+    state.hands[p1] = [card('9', 'S'), card('9', 'H')];
+    state.phase = 'action';
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: state.hands[p1].map((c) => c.id),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/already drew/i);
+
+    const view = redactStateFor(state, p1);
+    expect(view.canTakeDiscard).toBe(false);
+    expect(view.takeDiscardReason).toBe(res.error);
+  });
+
+  it('reports the pile as takeable to the player whose turn it is, and not to the other', () => {
+    state.discard = [card('9', 'C')];
+    expect(redactStateFor(state, p1).canTakeDiscard).toBe(true);
+    const other = redactStateFor(state, p2);
+    expect(other.canTakeDiscard).toBe(false);
+    expect(other.takeDiscardReason).toMatch(/not your turn/i);
+  });
+
   it('refuses when the top card is wild', () => {
     state.discard = [card('2', 'H')];
     state.hands[p1] = [card('9', 'S'), card('9', 'H')];

@@ -1,5 +1,5 @@
 import { currentPlayerId, teamOf, teamHasCanasta } from '../game/state.js';
-import { discardPickupBlocker } from '../game/engine.js';
+import { discardTakeBlocker } from '../game/engine.js';
 import { initialMeldThreshold } from '../game/scoring.js';
 import { POINT_VALUES } from '../game/card.js';
 
@@ -26,10 +26,7 @@ export function redactStateFor(state, viewerId) {
 
   const viewerTeam = teamOf(state, viewerId);
   const topDiscard = state.discard.length ? state.discard[state.discard.length - 1] : null;
-  const pileBlockedReason =
-    state.discardBlockedFor === viewerId
-      ? 'The discard pile is blocked for you this turn'
-      : discardPickupBlocker(state, viewerTeam, topDiscard);
+  const pileBlockedReason = discardTakeBlocker(state, viewerId);
 
   return {
     openingThreshold: initialMeldThreshold(state.scores[viewerTeam]),

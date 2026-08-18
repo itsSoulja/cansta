@@ -1,11 +1,13 @@
+# The live service is named "cansta" (https://cansta.onrender.com) and serves
+# only the API and sockets. The client is a separate Cloudflare Pages project,
+# also "cansta" (https://cansta.pages.dev), built with VITE_SERVER_URL pointed
+# at the Render origin — see the deployment notes in CLAUDE.md.
 services:
   - type: web
-    name: cansta-server
+    name: cansta
     env: node
     plan: free
-    # The server serves client/dist when it exists, so one service hosts both
-    # the API and the site — no second host and no VITE_SERVER_URL to keep in sync.
-    buildCommand: npm install && npm run build --workspace client
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
     envVars:

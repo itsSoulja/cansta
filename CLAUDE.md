@@ -84,4 +84,27 @@ Styling is class-based in `client/src/index.css` (felt table, fanned hand, card 
 
 ## Deployment
 
-Split deploy: server on Render (`render.yaml`), client built separately (a `.wrangler/` dir suggests Cloudflare Pages). `server/src/index.js` serves `client/dist` **only if that directory exists**, which supports the single-host/tunnel setup; in the split deploy the client needs `VITE_SERVER_URL` pointing at the server origin (`client/src/socket.js`).
+Split deploy, both halves named `cansta`:
+
+| Half | Host | URL |
+| --- | --- | --- |
+| Server (API + sockets) | Render, auto-deploys on push to `main` | https://cansta.onrender.com |
+| Client | Cloudflare Pages | https://cansta.pages.dev |
+
+The client is **not** deployed by pushing — it must be built and uploaded:
+
+```bash
+VITE_SERVER_URL=https://cansta.onrender.com npm run build --workspace client
+npx wrangler pages deploy client/dist --project-name=cansta --branch=main
+```
+
+That env var is load-bearing: without it the built bundle falls back to the
+page's own origin (`client/src/socket.js`), so a Pages-hosted client would try
+to open sockets against Cloudflare and never reach the game.
+
+`server/src/index.js` also serves `client/dist` when that directory exists,
+which is what makes a single-host setup possible; in this split deploy it never
+exists on Render, so that branch stays dormant.
+
+Render's free plan sleeps after ~15 minutes idle (~50s cold start), and rooms
+live in memory, so any redeploy or sleep destroys games in progress.

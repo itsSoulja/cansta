@@ -3,8 +3,11 @@ services:
     name: cansta-server
     env: node
     plan: free
-    buildCommand: npm install
+    # The server serves client/dist when it exists, so one service hosts both
+    # the API and the site — no second host and no VITE_SERVER_URL to keep in sync.
+    buildCommand: npm install && npm run build --workspace client
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 24.19.0

@@ -50,6 +50,16 @@ One `state` object per room holds the whole match across rounds. Load-bearing de
 - `initialMeldMade[team]` gates both melding and pile pickup; the threshold scales with cumulative score (50/90/120).
 - Match ends at 5000 points.
 
+### Modes
+
+Four modes: `1v1`, `1v1v1`, `1v1v1v1`, `2v2`. Only 2v2 pairs seats (`idx % 2`); every other mode gives each seat its own team, so the per-team scoring, opening threshold, and go-out rules carry over untouched. Seat counts live in `SEATS_BY_MODE` in `roomManager.js` — the one place to change when adding a mode. Heads-up is fixed at 2 packs; every larger table lets the host pick 2–4.
+
+### Animation events
+
+`state.events` carries what just happened, so the client can move cards between piles instead of snapping to the new snapshot: `RED_THREE` (with `source: 'deal' | 'draw'`), `DRAW_STOCK`, `TAKE_DISCARD`, `MELD`, `DISCARD`, `ROUND_END`. `applyAction` clears the array on entry, so each broadcast carries only that action's batch; `pushEvent` in `state.js` stamps a monotonic `seq` the client uses to skip events it already played.
+
+These are **decorative only** — state remains a full snapshot and correctness never depends on an event being received. But they are redacted alongside it (`redactEvent` in `redact.js`): a `DRAW_STOCK` card and a red three's `replacement` are face down to everyone but that player. Any new event carrying a hidden card must be added there.
+
 ### Redaction is also the client's rule oracle
 
 `rooms/redact.js` builds the per-viewer payload: other players' hands collapse to `{ count }`, and it precomputes `canTakeDiscard` / `takeDiscardReason` by calling `discardPickupBlocker` — the *same* function the engine uses to validate. That's why `discardPickupBlocker` is exported from `engine.js`. Keep it that way: the client highlights the pile and shows the blocking reason without owning a copy of the rules.

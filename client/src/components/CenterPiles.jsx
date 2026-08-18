@@ -43,7 +43,12 @@ export function CenterPiles({ game, canDraw, canTakePile, canDiscardHere, onDraw
         <span className="pile__label">Discard · {game.discardCount}</span>
         {canDiscardHere && <span className="pile__hint">click to discard</span>}
         {canTakePile && !canDiscardHere && (
-          <span className="pile__hint">{selectedCount >= 2 ? 'click to take the pile' : 'select 2+ matching cards'}</span>
+          <span className="pile__hint">
+            {selectedCount > 0 ? 'click to take the pile' : 'select the cards to meld it with'}
+          </span>
+        )}
+        {canDraw && !canTakePile && game.takeDiscardReason && (
+          <span className="pile__hint pile__hint--blocked">{game.takeDiscardReason}</span>
         )}
       </div>
     </div>

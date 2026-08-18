@@ -364,6 +364,12 @@ button.playing-card { cursor: pointer; }
   max-width: 11rem;
   text-align: center;
 }
+/* Why the pile is unavailable, so it never just sits there dead. */
+.pile__hint--blocked {
+  color: hsl(28 90% 72%);
+  max-width: 13rem;
+  line-height: 1.25;
+}
 
 /* Slow breathing highlight on whatever you may take this turn. */
 @keyframes breathe {

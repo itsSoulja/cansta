@@ -79,7 +79,11 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
 
   const onPileClick = () => {
     if (canDiscardHere) return sendAction({ type: 'DISCARD', cardId: selected[0] }, clearSelection);
-    if (canTakePile && selected.length >= 2) sendAction({ type: 'TAKE_DISCARD', cardIds: selected }, clearSelection);
+    if (canTakePile) {
+      sendAction({ type: 'TAKE_DISCARD', cardIds: selected }, (res) => {
+        if (res.ok) clearSelection();
+      });
+    }
   };
 
   // Lays every staged group down at once when opening; afterwards each group

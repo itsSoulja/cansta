@@ -103,9 +103,6 @@ export function discardPickupBlocker(state, team, topCard) {
   if (!state.initialMeldMade[team]) return 'Your side must open with a meld before taking the discard pile';
   if (isWild(topCard)) return 'Wild cards cannot be taken from the discard pile';
   if (topCard.rank === '3') return 'Threes cannot be taken from the discard pile';
-  if (state.melds[team][topCard.rank]) {
-    return `Your side already has a meld of ${topCard.rank}s, so you cannot take that card from the pile`;
-  }
   return null;
 }
 
@@ -126,7 +123,10 @@ function handleTakeDiscard(state, { playerId, cardIds = [] }) {
   const extracted = extractCards(state.hands[playerId], cardIds);
   if (!extracted) return { ok: false, error: 'Invalid cards selected' };
 
-  const shape = meldShape([...extracted.cards, topCard]);
+  // Fold the top card into an existing meld of its rank when there is one,
+  // rather than replacing that meld with a fresh one.
+  const existing = state.melds[team][topCard.rank];
+  const shape = meldShape([...(existing?.cards ?? []), ...extracted.cards, topCard]);
   if (!shape.valid) return { ok: false, error: shape.reason };
 
   const restOfPile = state.discard.slice(0, -1);

@@ -298,18 +298,39 @@ describe('taking the discard pile', () => {
     expect(res.error).toMatch(/three/i);
   });
 
-  it('refuses when the side already has a meld of that rank', () => {
+  it('folds the pile into an existing meld of that rank instead of replacing it', () => {
     const team = teamOf(state, p1);
-    state.melds[team]['9'] = meldShape([card('9', 'S'), card('9', 'H'), card('9', 'D')]);
-    state.discard = [card('9', 'C')];
+    const existing = [card('9', 'S'), card('9', 'H'), card('9', 'D')];
+    state.melds[team]['9'] = meldShape(existing);
+    state.discard = [card('4', 'S'), card('9', 'C')];
     state.hands[p1] = [card('9', 'S'), card('9', 'H'), card('K', 'D')];
     const res = applyAction(state, {
       type: 'TAKE_DISCARD',
       playerId: p1,
       cardIds: state.hands[p1].filter((c) => c.rank === '9').map((c) => c.id),
     });
-    expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/already has a meld/i);
+    expect(res.ok).toBe(true);
+    // 3 already down + 2 from hand + the top card, and none of the originals lost.
+    expect(state.melds[team]['9'].cards).toHaveLength(6);
+    for (const c of existing) {
+      expect(state.melds[team]['9'].cards.map((x) => x.id)).toContain(c.id);
+    }
+    // The buried card comes into hand along with the untouched king.
+    expect(state.hands[p1].map((c) => c.rank).sort()).toEqual(['4', 'K']);
+  });
+
+  it('lets the top card join an existing meld with a single card from hand', () => {
+    const team = teamOf(state, p1);
+    state.melds[team]['9'] = meldShape([card('9', 'S'), card('9', 'H'), card('9', 'D')]);
+    state.discard = [card('K', 'H'), card('9', 'C')];
+    state.hands[p1] = [card('9', 'S'), card('Q', 'D')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: [state.hands[p1][0].id],
+    });
+    expect(res.ok).toBe(true);
+    expect(state.melds[team]['9'].cards).toHaveLength(5);
   });
 
   it('allows taking the pile to form a new meld, moving the rest of the pile into hand', () => {

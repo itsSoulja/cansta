@@ -28,14 +28,19 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const opened = game.initialMeldMade[game.yourTeam];
   const inDraw = isYourTurn && game.phase === 'draw';
   const inAction = isYourTurn && game.phase === 'action';
+  const canDiscardHere = inAction && selected.length === 1;
+  const canTakePile = inDraw && game.canTakeDiscard;
 
   const selectedCards = useMemo(
     () => selected.map((id) => game.yourHand.find((c) => c.id === id)).filter(Boolean),
     [selected, game.yourHand],
   );
+  // While the pile is yours to take, its top card is shown inside the staged
+  // group it would join, so the running total is the one the pickup is judged on.
+  const pileCard = canTakePile ? game.topDiscard : null;
   const groups = useMemo(
-    () => buildGroups(selectedCards, wildAssignments, game.pointValues),
-    [selectedCards, wildAssignments, game.pointValues],
+    () => buildGroups(selectedCards, wildAssignments, game.pointValues, pileCard),
+    [selectedCards, wildAssignments, game.pointValues, pileCard],
   );
   const stagedTotal = groups.reduce((sum, g) => sum + g.points, 0);
 
@@ -74,13 +79,12 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
 
   const drawStock = () => inDraw && sendAction({ type: 'DRAW_STOCK' });
 
-  const canDiscardHere = inAction && selected.length === 1;
-  const canTakePile = inDraw && game.canTakeDiscard;
-
   const onPileClick = () => {
     if (canDiscardHere) return sendAction({ type: 'DISCARD', cardId: selected[0] }, clearSelection);
     if (canTakePile) {
-      sendAction({ type: 'TAKE_DISCARD', cardIds: selected }, (res) => {
+      // Groups, not a flat list: opening off the pile may need several melds to
+      // clear the threshold, exactly as OPEN_MELD does.
+      sendAction({ type: 'TAKE_DISCARD', groups: groups.map((g) => g.all.map((c) => c.id)) }, (res) => {
         if (res.ok) clearSelection();
       });
     }

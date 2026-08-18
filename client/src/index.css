@@ -417,6 +417,9 @@ button.playing-card { cursor: pointer; }
 .tray__slot:first-child { margin-left: 0; }
 .tray__meta { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.03em; }
 .tray__meta em { color: hsl(30 90% 68%); font-style: normal; }
+.tray__meta b { color: var(--glow); font-weight: 700; }
+/* The pile's top card, sitting in the group it would join if you take it. */
+.tray__slot--pile .playing-card { box-shadow: 0 0 0 2px var(--glow), var(--shadow-card); }
 .tray__group--warn .tray__meta { color: hsl(30 90% 68%); }
 .tray__threshold { display: flex; align-items: baseline; gap: 0.3rem; padding-left: 0.8rem; border-left: 1px solid hsl(0 0% 100% / 0.12); }
 .tray__total { font-size: 1.3rem; font-weight: 800; color: hsl(30 90% 68%); }

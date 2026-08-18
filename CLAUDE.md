@@ -70,7 +70,7 @@ If you add a derived hint for the UI, compute it in `redact.js` from a shared en
 
 These are choices, not bugs — check with the user before "fixing" them:
 
-- Taking the discard pile requires your side to have already opened. This avoids modeling a pile pickup against the opening threshold. The top card folds into an existing meld of its rank when there is one.
+- Taking the discard pile may be a side's opening play. Only what is laid down counts toward the threshold — the top card included, the buried cards not. `TAKE_DISCARD` therefore accepts `groups` like `OPEN_MELD` does, with a flat `cardIds` list as the single-meld shorthand; the top card joins the staged group of its rank, or an existing meld of that rank when nothing of the kind is staged.
 - Only the top discard card is melded on pickup; the rest goes to hand.
 - Black 3s only block the next player's pickup (`discardBlockedFor`); there is no full freeze mechanic.
 

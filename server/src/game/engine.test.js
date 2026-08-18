@@ -299,6 +299,64 @@ describe('taking the discard pile', () => {
     expect(other.takeDiscardReason).toMatch(/not your turn/i);
   });
 
+  it('opens a side straight off the pile, counting the top card toward the threshold', () => {
+    const team = teamOf(state, p1);
+    state.initialMeldMade[team] = false;
+    const eights = [card('8', 'H'), card('8', 'S'), card('8', 'D'), card('8', 'C')];
+    const sevens = [card('7', 'D'), card('7', 'C')];
+    state.hands[p1] = [...eights, ...sevens, card('K', 'H')];
+    state.discard = [card('9', 'S'), card('Q', 'C'), card('7', 'D')];
+
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      groups: [eights.map((c) => c.id), sevens.map((c) => c.id)],
+    });
+
+    // 4 eights = 40, plus two 7s and the pile's 7 = 15, so 55 clears the 50.
+    expect(res.ok).toBe(true);
+    expect(state.initialMeldMade[team]).toBe(true);
+    expect(state.melds[team]['8'].cards).toHaveLength(4);
+    expect(state.melds[team]['7'].cards).toHaveLength(3);
+    // The buried pile joins the hand; only the top card was melded.
+    expect(state.hands[p1].map((c) => c.rank).sort()).toEqual(['9', 'K', 'Q']);
+    expect(state.discard).toHaveLength(0);
+  });
+
+  it('refuses a pile opening that falls short, counting the top card in the total it reports', () => {
+    const team = teamOf(state, p1);
+    state.initialMeldMade[team] = false;
+    const eights = [card('8', 'H'), card('8', 'S'), card('8', 'D')];
+    const sevens = [card('7', 'D'), card('7', 'C')];
+    state.hands[p1] = [...eights, ...sevens];
+    state.discard = [card('7', 'D')];
+
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      groups: [eights.map((c) => c.id), sevens.map((c) => c.id)],
+    });
+
+    // 3 eights = 30 and three 7s = 15: 45, five short.
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/at least 50 points \(this is worth 45\)/);
+    expect(state.initialMeldMade[team]).toBe(false);
+    expect(state.discard).toHaveLength(1);
+  });
+
+  it('asks for cards of the rank the top card would join when none are staged', () => {
+    state.initialMeldMade[teamOf(state, p1)] = false;
+    state.hands[p1] = [card('8', 'H'), card('8', 'S'), card('8', 'D')];
+    state.discard = [card('7', 'D')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      groups: [state.hands[p1].map((c) => c.id)],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/select the 7s/i);
+  });
+
   it('refuses when the top card is wild', () => {
     state.discard = [card('2', 'H')];
     state.hands[p1] = [card('9', 'S'), card('9', 'H')];

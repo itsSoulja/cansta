@@ -3,7 +3,11 @@ import { Card, isWildCard, pointsFor, rankIndex } from './Card.jsx';
 // Selected cards collect above the hand and group themselves by rank. Wilds
 // are ambiguous by nature, so each one joins the biggest group and can be
 // clicked to move along to the next.
-export function buildGroups(cards, wildAssignments, pointValues) {
+//
+// pileCard is the top of the discard pile while it is yours to take. It rides
+// along in the group of its own rank — counted, but never part of `all`, since
+// it is the server that hands it over and only as part of the pickup.
+export function buildGroups(cards, wildAssignments, pointValues, pileCard = null) {
   const naturals = cards.filter((c) => !isWildCard(c));
   const wilds = cards.filter(isWildCard);
 
@@ -28,12 +32,15 @@ export function buildGroups(cards, wildAssignments, pointValues) {
 
   return groups.map((g) => {
     const all = [...g.cards, ...g.wilds];
+    const fromPile = pileCard && g.rank === pileCard.rank ? pileCard : null;
+    const counted = fromPile ? [...all, fromPile] : all;
     return {
       ...g,
       all,
-      points: all.reduce((sum, c) => sum + pointsFor(c, pointValues), 0),
-      shortOfThree: all.length < 3,
-      tooManyWilds: g.wilds.length >= g.cards.length,
+      fromPile,
+      points: counted.reduce((sum, c) => sum + pointsFor(c, pointValues), 0),
+      shortOfThree: counted.length < 3,
+      tooManyWilds: g.wilds.length >= (fromPile ? g.cards.length + 1 : g.cards.length),
     };
   });
 }
@@ -58,9 +65,15 @@ export function StagingTray({ groups, total, threshold, needsThreshold, onToggle
                   />
                 </div>
               ))}
+              {group.fromPile && (
+                <div className="tray__slot tray__slot--pile" style={{ '--i': group.all.length }} title="from the discard pile">
+                  <Card card={group.fromPile} size="small" static />
+                </div>
+              )}
             </div>
             <span className="tray__meta">
               {group.rank ? `${group.rank}s` : 'wild'} · {group.points}
+              {group.fromPile && <b> +pile</b>}
               {group.shortOfThree && <em> needs 3+</em>}
               {!group.shortOfThree && group.tooManyWilds && <em> too many wilds</em>}
             </span>

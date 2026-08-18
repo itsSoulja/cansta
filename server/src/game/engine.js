@@ -98,9 +98,8 @@ function handleDrawStock(state, { playerId }) {
 // Reasons a side may not take the pile with the given top card. Returns an
 // error string, or null when the pickup is allowed. Shared with the redacted
 // view so the client can highlight the pile without duplicating the rules.
-export function discardPickupBlocker(state, team, topCard) {
+export function discardPickupBlocker(state, topCard) {
   if (!topCard) return 'The discard pile is empty';
-  if (!state.initialMeldMade[team]) return 'Your side must open with a meld before taking the discard pile';
   if (isWild(topCard)) return 'Wild cards cannot be taken from the discard pile';
   if (topCard.rank === '3') return 'Threes cannot be taken from the discard pile';
   return null;
@@ -115,34 +114,70 @@ export function discardTakeBlocker(state, playerId) {
   if (turnError) return turnError.error;
   if (state.phase !== 'draw') return 'You already drew — the pile is taken instead of drawing, at the start of a turn';
   if (state.discardBlockedFor === playerId) return 'The discard pile is blocked for you this turn';
-  return discardPickupBlocker(state, teamOf(state, playerId), state.discard[state.discard.length - 1]);
+  return discardPickupBlocker(state, state.discard[state.discard.length - 1]);
 }
 
-// Simplification: taking the discard pile is only available once a side has
-// already opened, to avoid modeling multi-meld staging against the opening
-// threshold for a pile pickup.
-function handleTakeDiscard(state, { playerId, cardIds = [] }) {
+// Taking the pile can be a side's opening play. Only what is laid down counts
+// toward the threshold — the top card included, the buried cards not, since
+// those merely go to hand. Groups mirror OPEN_MELD so several melds can clear
+// the threshold together; a bare cardIds list is the single-meld shorthand.
+function handleTakeDiscard(state, { playerId, cardIds, groups }) {
   const blocked = discardTakeBlocker(state, playerId);
   if (blocked) return { ok: false, error: blocked };
 
   const team = teamOf(state, playerId);
   const topCard = state.discard[state.discard.length - 1];
+  const opening = !state.initialMeldMade[team];
 
-  const extracted = extractCards(state.hands[playerId], cardIds);
-  if (!extracted) return { ok: false, error: 'Invalid cards selected' };
+  const requested = groups?.length ? groups : [cardIds ?? []];
+  let remaining = state.hands[playerId];
+  const staged = [];
+  for (const ids of requested) {
+    const extracted = extractCards(remaining, ids);
+    if (!extracted) return { ok: false, error: 'Invalid cards selected' };
+    staged.push(extracted.cards);
+    remaining = extracted.remaining;
+  }
 
-  // Fold the top card into an existing meld of its rank when there is one,
-  // rather than replacing that meld with a fresh one.
+  // The top card joins whichever staged group shares its rank, or an existing
+  // meld of that rank when the player staged nothing of the kind.
   const existing = state.melds[team][topCard.rank];
-  const shape = meldShape([...(existing?.cards ?? []), ...extracted.cards, topCard]);
-  if (!shape.valid) return { ok: false, error: shape.reason };
+  let takerIdx = staged.findIndex((cards) => cards.some((c) => !isWild(c) && c.rank === topCard.rank));
+  if (takerIdx === -1) {
+    if (!existing) return { ok: false, error: `Select the ${topCard.rank}s from your hand to meld that card with` };
+    staged.push([]);
+    takerIdx = staged.length - 1;
+  }
+
+  const laid = [];
+  const ranks = new Set();
+  for (let i = 0; i < staged.length; i++) {
+    const takesTop = i === takerIdx;
+    const cards = takesTop ? [...(existing?.cards ?? []), ...staged[i], topCard] : staged[i];
+    if (cards.length === 0) continue;
+    const shape = meldShape(cards);
+    if (!shape.valid) return { ok: false, error: shape.reason };
+    if (shape.rank === '3') return { ok: false, error: 'Black 3s cannot be melded off the discard pile' };
+    if (ranks.has(shape.rank)) return { ok: false, error: 'Duplicate rank across melds' };
+    ranks.add(shape.rank);
+    laid.push({ shape, added: takesTop ? [...staged[i], topCard] : staged[i] });
+  }
+
+  if (opening) {
+    const total = laid.reduce((sum, { shape }) => sum + meldValue(shape), 0);
+    const threshold = initialMeldThreshold(state.scores[team]);
+    if (total < threshold) {
+      return { ok: false, error: `Opening meld must be worth at least ${threshold} points (this is worth ${total})` };
+    }
+  }
 
   const restOfPile = state.discard.slice(0, -1);
-  const newHand = [...extracted.remaining, ...restOfPile];
+  const newHand = [...remaining, ...restOfPile];
 
   const wouldEmptyHand = newHand.length === 0;
   if (wouldEmptyHand) {
-    const hypotheticalMelds = { ...state.melds[team], [shape.rank]: shape };
+    const hypotheticalMelds = { ...state.melds[team] };
+    for (const { shape } of laid) hypotheticalMelds[shape.rank] = shape;
     if (!Object.values(hypotheticalMelds).some((s) => s.isCanasta)) {
       return { ok: false, error: 'Cannot go out without a completed canasta' };
     }
@@ -157,16 +192,19 @@ function handleTakeDiscard(state, { playerId, cardIds = [] }) {
   });
   state.hands[playerId] = newHand;
   state.discard = [];
-  state.melds[team][shape.rank] = shape;
-  pushEvent(state, {
-    type: 'MELD',
-    playerId,
-    team,
-    rank: shape.rank,
-    cards: shape.cards,
-    added: [...extracted.cards, topCard],
-    opening: false,
-  });
+  for (const { shape, added } of laid) {
+    state.melds[team][shape.rank] = shape;
+    pushEvent(state, {
+      type: 'MELD',
+      playerId,
+      team,
+      rank: shape.rank,
+      cards: shape.cards,
+      added,
+      opening,
+    });
+  }
+  if (opening) state.initialMeldMade[team] = true;
   state.hasMeldedThisRound[team] = true;
   state.discardBlockedFor = null;
   state.phase = 'action';

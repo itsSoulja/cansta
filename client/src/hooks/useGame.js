@@ -50,6 +50,15 @@ export function useGame() {
     });
   }, []);
 
+  const leaveRoom = useCallback(() => {
+    setError(null);
+    socket.emit('leave_room', {}, (res) => {
+      if (!res.ok) return setError(res.error);
+      setLobby(null);
+      setGame(null);
+    });
+  }, []);
+
   const startGame = useCallback(() => {
     setError(null);
     socket.emit('start_game', {}, (res) => {
@@ -72,5 +81,5 @@ export function useGame() {
     });
   }, []);
 
-  return { connected, myId, lobby, game, error, setError, createRoom, joinRoom, startGame, sendAction, nextRound };
+  return { connected, myId, lobby, game, error, setError, createRoom, joinRoom, leaveRoom, startGame, sendAction, nextRound };
 }

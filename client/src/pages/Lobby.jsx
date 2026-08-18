@@ -1,4 +1,4 @@
-export function Lobby({ lobby, myId, onStart, error }) {
+export function Lobby({ lobby, myId, onStart, onLeave, error }) {
   const isHost = lobby.hostSocketId === myId;
   const full = lobby.seats.every((s) => s !== null);
   const taken = lobby.seats.filter(Boolean).length;
@@ -46,6 +46,10 @@ export function Lobby({ lobby, myId, onStart, error }) {
         ) : (
           <p className="portal__wait">Waiting for the host to start…</p>
         )}
+
+        <button className="btn btn--ghost btn--wide" onClick={onLeave}>
+          Leave the table
+        </button>
       </div>
     </div>
   );

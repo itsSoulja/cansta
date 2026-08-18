@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { createRoom, joinRoom, getRoomBySocket, leaveRoom, startGame, isValidMode } from './rooms/roomManager.js';
 import { redactStateFor } from './rooms/redact.js';
 import { applyAction, startNextRound } from './game/engine.js';
+import { lookupEasterEgg, easterEggFile } from './eggs/library.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, '../../client/dist');
@@ -17,6 +18,21 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Easter eggs. The pictures are never part of the client bundle and there is
+// no endpoint that lists them: you ask with a name, and only a name close
+// enough to one of the files comes back with the digest that fetches it.
+app.get('/easter-egg', (req, res) => {
+  const match = lookupEasterEgg(req.query.name);
+  if (!match) return res.json({ found: false });
+  res.json({ found: true, url: `/easter-egg/${match.token}` });
+});
+
+app.get('/easter-egg/:token', (req, res) => {
+  const file = easterEggFile(req.params.token);
+  if (!file) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(file, { headers: { 'Cache-Control': 'public, max-age=86400' } });
+});
 
 // Only present when the client is built alongside the server (e.g. the
 // single-host tunnel setup). In the split Render + Cloudflare Pages
@@ -65,6 +81,21 @@ io.on('connection', (socket) => {
     socket.join(result.room.code);
     cb({ ok: true, code: result.room.code });
     broadcastLobby(result.room);
+  });
+
+  // Leaving is the deliberate counterpart of the disconnect path: the seat is
+  // freed the same way, but the socket stays connected and lands back on the
+  // landing page. Only before the game starts — once it has, seats are keyed
+  // to socket ids and a vacated one would orphan a hand mid-match.
+  socket.on('leave_room', (_payload, cb = () => {}) => {
+    const room = getRoomBySocket(socket.id);
+    if (!room) return cb({ ok: false, error: 'Not in a room' });
+    if (room.gameState) return cb({ ok: false, error: 'The game has already started' });
+    const { code } = room;
+    const result = leaveRoom(socket.id);
+    socket.leave(code);
+    cb({ ok: true });
+    if (result && !result.roomDeleted && result.room) broadcastLobby(result.room);
   });
 
   socket.on('start_game', (_payload, cb = () => {}) => {

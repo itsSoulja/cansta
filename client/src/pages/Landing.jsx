@@ -7,7 +7,7 @@ const MODES = [
   { id: '2v2', label: '2v2', blurb: 'Partners, across the table', seats: 4 },
 ];
 
-export function Landing({ onCreate, onJoin, error }) {
+export function Landing({ onCreate, onJoin, onNameChange, error }) {
   const [name, setName] = useState('');
   const [mode, setMode] = useState('1v1');
   const [packCount, setPackCount] = useState(2);
@@ -26,7 +26,15 @@ export function Landing({ onCreate, onJoin, error }) {
 
         <label className="field">
           <span className="field__label">Your name</span>
-          <input className="field__input" value={name} onChange={(e) => setName(e.target.value)} placeholder="who's playing?" />
+          <input
+            className="field__input"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              onNameChange?.(e.target.value);
+            }}
+            placeholder="who's playing?"
+          />
         </label>
 
         <section className="panel">

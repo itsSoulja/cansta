@@ -29,7 +29,7 @@ The client never computes rules. It renders a redacted state snapshot and emits 
 
 The socket protocol is deliberately tiny (`server/src/index.js`):
 
-- Client → server: `create_room`, `join_room`, `start_game`, `action`, `next_round`, each with an ack callback returning `{ ok, error? }`.
+- Client → server: `create_room`, `join_room`, `leave_room`, `start_game`, `action`, `next_round`, each with an ack callback returning `{ ok, error? }`.
 - Server → client: `lobby` (room roster, broadcast to the room) and `state` (per-socket, **individually redacted**, sent in a loop over seats — never `io.to(room).emit('state')`, that would leak hands).
 
 Every mutation funnels through `applyAction(state, action)` in `game/engine.js`, a switch over `DRAW_STOCK | TAKE_DISCARD | OPEN_MELD | MELD | DISCARD`. The handlers are pure-ish: they mutate `state` in place and return `{ ok, error? , roundEnded? }`. `index.js` re-broadcasts only when `ok`.
@@ -49,6 +49,7 @@ One `state` object per room holds the whole match across rounds. Load-bearing de
 - `hasMeldedThisRound` vs `turnStartMelded`: the latter is snapshotted in `advanceTurn` so the concealed go-out bonus can tell "melded before this turn" from "melded during it".
 - `initialMeldMade[team]` gates melding and pile pickup, sets the sign of the red 3 bonus at scoring time, and its threshold scales with cumulative score (50/90/120).
 - A meld must be built on naturals: wilds strictly fewer than naturals, and at most three wilds however long the meld grows (`MAX_WILDS` in `game/meld.js`).
+- A hand never empties (`MIN_HAND` in `game/engine.js`): no lay-down may leave fewer than 2 cards, a discard may not take the last one, and the pile needs more than 2 in hand to reach for. Going out is therefore unreachable — the go-out, concealed and black-3-closing branches in the handlers stay in place but never fire, and a round ends when the stock runs dry. Relaxing the floor brings them all back.
 - Match ends at 5000 points.
 
 ### Modes
@@ -71,9 +72,18 @@ If you add a derived hint for the UI, compute it in `redact.js` from a shared en
 
 These are choices, not bugs — check with the user before "fixing" them:
 
-- Taking the discard pile may be a side's opening play. Only what is laid down counts toward the threshold — the top card included, the buried cards not. `TAKE_DISCARD` therefore accepts `groups` like `OPEN_MELD` does, with a flat `cardIds` list as the single-meld shorthand; the top card joins the staged group of its rank, or an existing meld of that rank when nothing of the kind is staged.
+- Taking the discard pile is refused when your side already melds the top card's rank — a house rule, not standard Canasta, where adding the top card to an existing meld is the commonest pickup. It means the top card always *starts* a meld and never joins one, so `TAKE_DISCARD` never has to fold into a stored shape.
+- Taking the pile may be a side's opening play. Only what is laid down counts toward the threshold — the top card included, the buried cards not. `TAKE_DISCARD` therefore accepts `groups` like `OPEN_MELD` does, with a flat `cardIds` list as the single-meld shorthand.
 - Only the top discard card is melded on pickup; the rest goes to hand.
 - Black 3s only block the next player's pickup (`discardBlockedFor`); there is no full freeze mechanic.
+
+### Easter eggs
+
+Drop an image into `easter eggs/` at the repo root, named for the player name that should summon it (`Elon Musk.jpeg`). Typing a name close enough to that file — spacing, case and punctuation ignored, and a slip or two of the finger forgiven by `server/src/eggs/match.js` — paints the picture behind the whole app for that player.
+
+The pictures are deliberately **not** part of the client bundle. A build-time glob would put every secret name and every image URL into the JS in plaintext, one devtools panel away. Instead the server holds them: `GET /easter-egg?name=…` answers with a sha256-derived token only when a name matches, and `GET /easter-egg/:token` serves that file. There is no endpoint that lists them, the token is a Map key rather than a path, and a name that matches nothing is indistinguishable from a name that does not exist.
+
+Render serves those images, so the folder has to be committed — the client half of the deploy never sees them.
 
 ### Client
 

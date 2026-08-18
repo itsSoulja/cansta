@@ -3,6 +3,13 @@ import { meldShape, meldValue } from './meld.js';
 import { computeRoundScore, initialMeldThreshold } from './scoring.js';
 import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound, pushEvent } from './state.js';
 
+// House rule: a hand never empties. Laying cards down may not take you below
+// MIN_HAND, and the pile is out of reach until you hold one more than that —
+// taking it costs you cards before the buried ones arrive. Going out is
+// therefore unreachable, and a round ends when the stock runs dry.
+const MIN_HAND = 2;
+const KEEP_HAND = `You must keep at least ${MIN_HAND} cards in hand`;
+
 function extractCards(hand, cardIds) {
   const remaining = hand.slice();
   const cards = [];
@@ -99,10 +106,13 @@ function handleDrawStock(state, { playerId }) {
 // Reasons a side may not take the pile with the given top card. Returns an
 // error string, or null when the pickup is allowed. Shared with the redacted
 // view so the client can highlight the pile without duplicating the rules.
-export function discardPickupBlocker(state, topCard) {
+export function discardPickupBlocker(state, team, topCard) {
   if (!topCard) return 'The discard pile is empty';
   if (isWild(topCard)) return 'Wild cards cannot be taken from the discard pile';
   if (topCard.rank === '3') return 'Threes cannot be taken from the discard pile';
+  if (state.melds[team][topCard.rank]) {
+    return `Your side already has a meld of ${topCard.rank}s, so you cannot take that card from the pile`;
+  }
   return null;
 }
 
@@ -115,7 +125,10 @@ export function discardTakeBlocker(state, playerId) {
   if (turnError) return turnError.error;
   if (state.phase !== 'draw') return 'You already drew — the pile is taken instead of drawing, at the start of a turn';
   if (state.discardBlockedFor === playerId) return 'The discard pile is blocked for you this turn';
-  return discardPickupBlocker(state, state.discard[state.discard.length - 1]);
+  if (state.hands[playerId].length <= MIN_HAND) {
+    return `You need more than ${MIN_HAND} cards in hand to take the pile`;
+  }
+  return discardPickupBlocker(state, teamOf(state, playerId), state.discard[state.discard.length - 1]);
 }
 
 // Taking the pile can be a side's opening play. Only what is laid down counts
@@ -140,21 +153,18 @@ function handleTakeDiscard(state, { playerId, cardIds, groups }) {
     remaining = extracted.remaining;
   }
 
-  // The top card joins whichever staged group shares its rank, or an existing
-  // meld of that rank when the player staged nothing of the kind.
-  const existing = state.melds[team][topCard.rank];
-  let takerIdx = staged.findIndex((cards) => cards.some((c) => !isWild(c) && c.rank === topCard.rank));
+  // The pile is closed on any rank already melded, so the top card always
+  // starts a fresh meld with cards staged from hand — it never joins one.
+  const takerIdx = staged.findIndex((cards) => cards.some((c) => !isWild(c) && c.rank === topCard.rank));
   if (takerIdx === -1) {
-    if (!existing) return { ok: false, error: `Select the ${topCard.rank}s from your hand to meld that card with` };
-    staged.push([]);
-    takerIdx = staged.length - 1;
+    return { ok: false, error: `Select the ${topCard.rank}s from your hand to meld that card with` };
   }
 
   const laid = [];
   const ranks = new Set();
   for (let i = 0; i < staged.length; i++) {
     const takesTop = i === takerIdx;
-    const cards = takesTop ? [...(existing?.cards ?? []), ...staged[i], topCard] : staged[i];
+    const cards = takesTop ? [...staged[i], topCard] : staged[i];
     if (cards.length === 0) continue;
     const shape = meldShape(cards);
     if (!shape.valid) return { ok: false, error: shape.reason };
@@ -174,6 +184,8 @@ function handleTakeDiscard(state, { playerId, cardIds, groups }) {
 
   const restOfPile = state.discard.slice(0, -1);
   const newHand = [...remaining, ...restOfPile];
+
+  if (newHand.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
 
   const wouldEmptyHand = newHand.length === 0;
   if (wouldEmptyHand) {
@@ -247,6 +259,8 @@ function handleOpenMeld(state, { playerId, groups = [] }) {
     return { ok: false, error: `Opening meld must be worth at least ${threshold} points (this is worth ${totalValue})` };
   }
 
+  if (remaining.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
+
   const wouldEmptyHand = remaining.length === 0;
   if (wouldEmptyHand && !shapes.some((s) => s.isCanasta)) {
     return { ok: false, error: 'Cannot go out without a completed canasta' };
@@ -300,6 +314,8 @@ function handleMeld(state, { playerId, cardIds = [], targetRank }) {
     return { ok: false, error: 'Black 3s can only be melded when going out' };
   }
 
+  if (extracted.remaining.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
+
   const wouldEmptyHand = extracted.remaining.length === 0;
   if (wouldEmptyHand) {
     const hypotheticalMelds = { ...state.melds[team], [shape.rank]: shape };
@@ -338,6 +354,8 @@ function handleDiscard(state, { playerId, cardId }) {
   if (idx === -1) return { ok: false, error: 'Card not in hand' };
   const card = hand[idx];
   const team = teamOf(state, playerId);
+
+  if (hand.length <= MIN_HAND - 1) return { ok: false, error: KEEP_HAND };
 
   const wouldEmptyHand = hand.length === 1;
   if (wouldEmptyHand && !teamHasCanasta(state, team)) {

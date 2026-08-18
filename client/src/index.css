@@ -152,6 +152,22 @@ button.playing-card { cursor: pointer; }
 
 .is-flying { visibility: hidden; }
 
+/* ── Easter egg background ───────────────────────────────────────────────
+   Set by useEasterEgg when a typed name matches a picture the server holds.
+   The scrim is doing real work: cards have to stay readable over whatever
+   the picture turns out to be.                                           */
+body.has-egg .table-stage,
+body.has-egg .portal {
+  background-image:
+    linear-gradient(hsl(var(--felt-hue) 45% 5% / 0.74), hsl(var(--felt-hue) 45% 5% / 0.74)),
+    var(--egg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+body.has-egg .table-rays { display: none; }
+body.has-egg .table-glow { opacity: 0.4; }
+
 /* ── Table shell ─────────────────────────────────────────────────────── */
 .table-stage {
   position: relative;

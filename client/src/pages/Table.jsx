@@ -30,6 +30,10 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const inAction = isYourTurn && game.phase === 'action';
   const canDiscardHere = inAction && selected.length === 1;
   const canTakePile = inDraw && game.canTakeDiscard;
+  // A hand never empties, so laying down is capped by what must stay behind.
+  // The pile is exempt: the buried cards come back the other way.
+  const MIN_HAND = 2;
+  const wouldStripHand = selected.length > 0 && game.yourHand.length - selected.length < MIN_HAND;
 
   const selectedCards = useMemo(
     () => selected.map((id) => game.yourHand.find((c) => c.id === id)).filter(Boolean),
@@ -231,7 +235,12 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
           </span>
 
           {inAction && selected.length > 0 && (
-            <button className="btn btn--primary" onClick={layDown}>
+            <button
+              className="btn btn--primary"
+              onClick={layDown}
+              disabled={wouldStripHand}
+              title={wouldStripHand ? `${MIN_HAND} cards must stay in your hand` : undefined}
+            >
               {opened ? `Lay down ${groups.length > 1 ? `${groups.length} melds` : 'meld'}` : 'Open with these'}
             </button>
           )}
@@ -244,6 +253,9 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             <button className="btn btn--ghost" onClick={clearSelection}>
               Clear
             </button>
+          )}
+          {inAction && wouldStripHand && (
+            <span className="action-bar__note">that leaves too few cards — {MIN_HAND} must stay in your hand</span>
           )}
           {inDraw && selected.length > 0 && (
             <span className="action-bar__note">draw or take the pile first — then a meld will take these</span>

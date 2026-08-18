@@ -46,6 +46,18 @@ describe('meldShape', () => {
     expect(meldShape([card('7', 'S'), card('7', 'H')]).valid).toBe(false);
   });
 
+  it('rejects more than three wilds however many naturals back them', () => {
+    const cards = [
+      card('7', 'S'), card('7', 'H'), card('7', 'D'), card('7', 'C'), card('7', 'S'),
+      card('2', 'S'), card('2', 'H'), card('2', 'D'), card('JOKER', null),
+    ];
+    const shape = meldShape(cards);
+    expect(shape.valid).toBe(false);
+    expect(shape.reason).toMatch(/at most 3 wild/i);
+    // Three wilds against the same naturals is still a meld.
+    expect(meldShape(cards.slice(0, -1)).valid).toBe(true);
+  });
+
   it('rejects a pure-wild group', () => {
     const shape = meldShape([card('2', 'S'), card('2', 'H'), card('JOKER', null)]);
     expect(shape.valid).toBe(false);
@@ -75,11 +87,18 @@ describe('initialMeldThreshold', () => {
 });
 
 describe('computeRoundScore', () => {
-  it('scores red 3 bonuses at 100 each, 800 for all four', () => {
-    const base = { meldShapes: [], concealedGoOut: false, wentOutFirst: false, handCards: [] };
+  it('scores red 3s at 100 each, 800 for all four, for a side that has melded', () => {
+    const base = { meldShapes: [], opened: true, concealedGoOut: false, wentOutFirst: false, handCards: [] };
     expect(computeRoundScore({ ...base, redThreeCount: 1 })).toBe(100);
     expect(computeRoundScore({ ...base, redThreeCount: 3 })).toBe(300);
     expect(computeRoundScore({ ...base, redThreeCount: 4 })).toBe(800);
+  });
+
+  it('charges the same red 3s against a side that never melded', () => {
+    const base = { meldShapes: [], opened: false, concealedGoOut: false, wentOutFirst: false, handCards: [] };
+    expect(computeRoundScore({ ...base, redThreeCount: 1 })).toBe(-100);
+    expect(computeRoundScore({ ...base, redThreeCount: 3 })).toBe(-300);
+    expect(computeRoundScore({ ...base, redThreeCount: 4 })).toBe(-800);
   });
 
   it('adds concealed and go-out-first bonuses', () => {
@@ -148,6 +167,17 @@ describe('engine — 1v1 game flow', () => {
     });
     expect(ok.ok).toBe(true);
     expect(state.initialMeldMade[teamOf(state, p1)]).toBe(true);
+  });
+
+  it('turns a red 3 against a side that ends the round without melding', () => {
+    const team = teamOf(state, p1);
+    state.redThrees[team] = [card('3', 'H'), card('3', 'D')];
+    state.hands[p1] = [];
+    state.hands[p2] = [];
+    state.stock = [];
+    applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
+    expect(state.roundOver).toBe(true);
+    expect(state.scores[team]).toBe(-200);
   });
 
   it('auto-extracts red 3s on draw and replaces them for free', () => {

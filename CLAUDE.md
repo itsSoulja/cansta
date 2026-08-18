@@ -47,7 +47,8 @@ One `state` object per room holds the whole match across rounds. Load-bearing de
 - `melds[team]` is keyed **by rank**, so a side has at most one meld per rank. Adding cards replaces the stored shape with a re-validated one.
 - Meld "shapes" (`game/meld.js`) are computed objects (`{ valid, rank, cards, naturals, wilds, isCanasta, isNatural }`) stored directly in state, not recomputed on read.
 - `hasMeldedThisRound` vs `turnStartMelded`: the latter is snapshotted in `advanceTurn` so the concealed go-out bonus can tell "melded before this turn" from "melded during it".
-- `initialMeldMade[team]` gates both melding and pile pickup; the threshold scales with cumulative score (50/90/120).
+- `initialMeldMade[team]` gates melding and pile pickup, sets the sign of the red 3 bonus at scoring time, and its threshold scales with cumulative score (50/90/120).
+- A meld must be built on naturals: wilds strictly fewer than naturals, and at most three wilds however long the meld grows (`MAX_WILDS` in `game/meld.js`).
 - Match ends at 5000 points.
 
 ### Modes

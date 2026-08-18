@@ -1,5 +1,9 @@
 import { isWild, pointValue } from './card.js';
 
+// A meld is built on its naturals: they must outnumber the wilds, and no meld
+// may lean on more than three wilds however long it grows.
+const MAX_WILDS = 3;
+
 export function meldShape(cards) {
   if (cards.length < 3) return { valid: false, reason: 'A meld needs at least 3 cards' };
   const naturals = cards.filter((c) => !isWild(c));
@@ -11,6 +15,9 @@ export function meldShape(cards) {
   }
   if (wilds.length >= naturals.length) {
     return { valid: false, reason: 'Wild cards must be fewer than natural cards in a meld' };
+  }
+  if (wilds.length > MAX_WILDS) {
+    return { valid: false, reason: `A meld can hold at most ${MAX_WILDS} wild cards` };
   }
   return {
     valid: true,

@@ -37,6 +37,7 @@ function finalizeRound(state, { wentOutTeam, concealedGoOut = false }) {
     roundScores[team] = computeRoundScore({
       meldShapes: teamMeldShapes(state, team),
       redThreeCount: state.redThrees[team].length,
+      opened: state.initialMeldMade[team],
       concealedGoOut: team === wentOutTeam && concealedGoOut,
       wentOutFirst: team === wentOutTeam,
       handCards,

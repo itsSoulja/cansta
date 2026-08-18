@@ -11,9 +11,16 @@ export function handValue(hand) {
   return hand.reduce((sum, c) => sum + pointValue(c), 0);
 }
 
-export function computeRoundScore({ meldShapes, redThreeCount, concealedGoOut, wentOutFirst, handCards }) {
+// Red 3s are a bonus only to a side that got a meld down. Caught with them and
+// nothing on the table, the same value counts against you instead.
+export function redThreeValue(redThreeCount, opened) {
+  const value = redThreeCount === 4 ? 800 : redThreeCount * 100;
+  return opened ? value : -value;
+}
+
+export function computeRoundScore({ meldShapes, redThreeCount, opened, concealedGoOut, wentOutFirst, handCards }) {
   let score = meldShapes.reduce((sum, shape) => sum + meldValue(shape), 0);
-  score += redThreeCount === 4 ? 800 : redThreeCount * 100;
+  score += redThreeValue(redThreeCount, opened);
   if (concealedGoOut) score += 500;
   if (wentOutFirst) score += 100;
   score -= handValue(handCards);

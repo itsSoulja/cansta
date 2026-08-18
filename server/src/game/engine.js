@@ -1,4 +1,4 @@
-import { isRedThree, isBlackThree } from './card.js';
+import { isRedThree, isBlackThree, isWild } from './card.js';
 import { meldShape, meldValue } from './meld.js';
 import { computeRoundScore, initialMeldThreshold } from './scoring.js';
 import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound } from './state.js';
@@ -87,36 +87,39 @@ function handleDrawStock(state, { playerId }) {
   return { ok: true };
 }
 
+// Reasons a side may not take the pile with the given top card. Returns an
+// error string, or null when the pickup is allowed. Shared with the redacted
+// view so the client can highlight the pile without duplicating the rules.
+export function discardPickupBlocker(state, team, topCard) {
+  if (!topCard) return 'The discard pile is empty';
+  if (!state.initialMeldMade[team]) return 'Your side must open with a meld before taking the discard pile';
+  if (isWild(topCard)) return 'Wild cards cannot be taken from the discard pile';
+  if (topCard.rank === '3') return 'Threes cannot be taken from the discard pile';
+  if (state.melds[team][topCard.rank]) {
+    return `Your side already has a meld of ${topCard.rank}s, so you cannot take that card from the pile`;
+  }
+  return null;
+}
+
 // Simplification: taking the discard pile is only available once a side has
 // already opened, to avoid modeling multi-meld staging against the opening
 // threshold for a pile pickup.
-function handleTakeDiscard(state, { playerId, cardIds = [], targetRank }) {
+function handleTakeDiscard(state, { playerId, cardIds = [] }) {
   const err = validateTurn(state, playerId);
   if (err) return err;
   if (state.phase !== 'draw') return { ok: false, error: 'You have already drawn this turn' };
   if (state.discardBlockedFor === playerId) return { ok: false, error: 'The discard pile is blocked for you this turn' };
-  if (state.discard.length === 0) return { ok: false, error: 'The discard pile is empty' };
 
   const team = teamOf(state, playerId);
-  if (!state.initialMeldMade[team]) {
-    return { ok: false, error: "Your side must open with a meld before taking the discard pile" };
-  }
-
   const topCard = state.discard[state.discard.length - 1];
+  const takeError = discardPickupBlocker(state, team, topCard);
+  if (takeError) return { ok: false, error: takeError };
+
   const extracted = extractCards(state.hands[playerId], cardIds);
   if (!extracted) return { ok: false, error: 'Invalid cards selected' };
-  const meldCards = [...extracted.cards, topCard];
 
-  let shape;
-  if (targetRank) {
-    const existing = state.melds[team][targetRank];
-    if (!existing) return { ok: false, error: 'No existing meld of that rank' };
-    shape = meldShape([...existing.cards, ...meldCards]);
-  } else {
-    shape = meldShape(meldCards);
-  }
+  const shape = meldShape([...extracted.cards, topCard]);
   if (!shape.valid) return { ok: false, error: shape.reason };
-  if (shape.rank === '3') return { ok: false, error: 'Threes cannot be melded this way' };
 
   const restOfPile = state.discard.slice(0, -1);
   const newHand = [...extracted.remaining, ...restOfPile];

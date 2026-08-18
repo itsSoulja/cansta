@@ -262,3 +262,79 @@ describe('engine — 1v1 game flow', () => {
     expect(state.scores[team] - scoreBeforeClosing).toBe(expectedGain);
   });
 });
+
+describe('taking the discard pile', () => {
+  let state;
+  const p1 = 'p1';
+  const p2 = 'p2';
+
+  beforeEach(() => {
+    state = createMatch({ mode: '1v1', packCount: 2, playerIds: [p1, p2] });
+    state.initialMeldMade[teamOf(state, p1)] = true;
+  });
+
+  it('refuses when the top card is wild', () => {
+    state.discard = [card('2', 'H')];
+    state.hands[p1] = [card('9', 'S'), card('9', 'H')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: state.hands[p1].map((c) => c.id),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/wild/i);
+  });
+
+  it('refuses when the top card is a three', () => {
+    state.discard = [card('3', 'S')];
+    state.hands[p1] = [card('3', 'C'), card('3', 'S')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: state.hands[p1].map((c) => c.id),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/three/i);
+  });
+
+  it('refuses when the side already has a meld of that rank', () => {
+    const team = teamOf(state, p1);
+    state.melds[team]['9'] = meldShape([card('9', 'S'), card('9', 'H'), card('9', 'D')]);
+    state.discard = [card('9', 'C')];
+    state.hands[p1] = [card('9', 'S'), card('9', 'H'), card('K', 'D')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: state.hands[p1].filter((c) => c.rank === '9').map((c) => c.id),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/already has a meld/i);
+  });
+
+  it('allows taking the pile to form a new meld, moving the rest of the pile into hand', () => {
+    state.discard = [card('4', 'S'), card('K', 'H'), card('9', 'C')];
+    state.hands[p1] = [card('9', 'S'), card('9', 'H'), card('Q', 'D')];
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: state.hands[p1].filter((c) => c.rank === '9').map((c) => c.id),
+    });
+    expect(res.ok).toBe(true);
+    expect(state.melds[teamOf(state, p1)]['9'].cards).toHaveLength(3);
+    expect(state.discard).toHaveLength(0);
+    // kept the Q, plus absorbed the 4 and K that were under the top card
+    expect(state.hands[p1].map((c) => c.rank).sort()).toEqual(['4', 'K', 'Q']);
+  });
+
+  it('still lets a player add a drawn card to an existing meld of that rank', () => {
+    const team = teamOf(state, p1);
+    state.melds[team]['9'] = meldShape([card('9', 'S'), card('9', 'H'), card('9', 'D')]);
+    state.hands[p1] = [card('K', 'C')];
+    state.stock.push(card('9', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
+    const drawn = state.hands[p1].find((c) => c.rank === '9');
+    const res = applyAction(state, { type: 'MELD', playerId: p1, cardIds: [drawn.id], targetRank: '9' });
+    expect(res.ok).toBe(true);
+    expect(state.melds[team]['9'].cards).toHaveLength(4);
+  });
+});

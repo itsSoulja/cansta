@@ -13,9 +13,11 @@ export function isRedCard(card) {
 const RANK_ORDER = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'JOKER'];
 const SUIT_ORDER = ['S', 'H', 'D', 'C'];
 
+// Descending left-to-right, so the hand reads ascending right-to-left
+// (highest card sits on the left).
 export function sortHand(cards) {
   return [...cards].sort((a, b) => {
-    const rankDiff = RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank);
+    const rankDiff = RANK_ORDER.indexOf(b.rank) - RANK_ORDER.indexOf(a.rank);
     if (rankDiff !== 0) return rankDiff;
     return SUIT_ORDER.indexOf(a.suit) - SUIT_ORDER.indexOf(b.suit);
   });

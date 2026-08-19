@@ -201,6 +201,34 @@ describe('engine — 1v1 game flow', () => {
     expect(state.wentOutTeam).toBeNull();
   });
 
+  it('lays down to a single card and goes out on the discard, with a canasta already down', () => {
+    const team = teamOf(state, p1);
+    state.initialMeldMade[team] = true;
+    state.hasMeldedThisRound[team] = true;
+    state.turnStartMelded[team] = true;
+    state.melds[team]['9'] = meldShape(['S', 'H', 'D', 'C', 'S', 'H', 'D'].map((s) => card('9', s)));
+    // Four kings and a queen pair with a wild staged, one jack behind them.
+    const kings = ['H', 'S', 'C', 'D'].map((s) => card('K', s));
+    const queens = [card('Q', 'S'), card('Q', 'C'), card('2', 'H')];
+    state.hands[p1] = [...kings, ...queens, card('J', 'D')];
+    state.stock.push(card('5', 'C'));
+    applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
+    state.hands[p1] = [...kings, ...queens, card('J', 'D')]; // the draw is beside the point
+
+    const laidKings = applyAction(state, { type: 'MELD', playerId: p1, cardIds: kings.map((c) => c.id) });
+    expect(laidKings.ok).toBe(true);
+    const laidQueens = applyAction(state, { type: 'MELD', playerId: p1, cardIds: queens.map((c) => c.id) });
+    expect(laidQueens.ok).toBe(true);
+    expect(state.hands[p1]).toHaveLength(1);
+    expect(state.roundOver).toBe(false);
+
+    const out = applyAction(state, { type: 'DISCARD', playerId: p1, cardId: state.hands[p1][0].id });
+    expect(out.ok).toBe(true);
+    expect(out.roundEnded).toBe(true);
+    expect(state.wentOutTeam).toBe(team);
+    expect(state.hands[p1]).toHaveLength(0);
+  });
+
   it('refuses a meld that would leave a single card, and lets the turn finish instead', () => {
     const team = teamOf(state, p1);
     state.initialMeldMade[team] = true;
@@ -217,7 +245,7 @@ describe('engine — 1v1 game flow', () => {
       targetRank: '9',
     });
     expect(greedy.ok).toBe(false);
-    expect(greedy.error).toMatch(/at least 2 cards/i);
+    expect(greedy.error).toMatch(/keep a card to discard/i);
 
     // One of them is fine, and the discard that follows still has a card to give.
     const one = applyAction(state, {
@@ -234,17 +262,17 @@ describe('engine — 1v1 game flow', () => {
     expect(state.roundOver).toBe(false);
   });
 
-  it('refuses to let a player empty their hand', () => {
+  it('refuses to let a player empty their hand without a completed canasta', () => {
     state.hands[p1] = [];
     state.stock.push(card('Q', 'D'));
     applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
     const res = applyAction(state, { type: 'DISCARD', playerId: p1, cardId: state.hands[p1][0].id });
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/at least 2 cards/i);
+    expect(res.error).toMatch(/canasta/i);
     expect(state.hands[p1]).toHaveLength(1);
   });
 
-  it('refuses the discard that would empty a hand, canasta or not', () => {
+  it('lets a player go out by discard once their team has a canasta, awarding the go-out bonus', () => {
     const team = teamOf(state, p1);
     const natural = ['7', '7', '7', '7', '7', '7', '7'].map((r, i) => card(r, ['S', 'H', 'D', 'C', 'S', 'H', 'D'][i]));
     state.melds[team]['7'] = meldShape(natural);
@@ -253,30 +281,28 @@ describe('engine — 1v1 game flow', () => {
     state.stock.push(card('Q', 'D'));
     applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
     const res = applyAction(state, { type: 'DISCARD', playerId: p1, cardId: state.hands[p1][0].id });
-    expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/at least 2 cards/i);
-    expect(state.roundOver).toBe(false);
-    expect(state.wentOutTeam).toBeNull();
+    expect(res.ok).toBe(true);
+    expect(res.roundEnded).toBe(true);
+    expect(state.wentOutTeam).toBe(team);
+    expect(state.lastRoundSummary.roundScores[team]).toBeGreaterThan(0);
   });
 
-  it('refuses an opening meld that would empty the hand, however good the canasta', () => {
+  it('awards the concealed-hand bonus for opening and going out in the same turn', () => {
     const team = teamOf(state, p1);
-    // Seven 7s in hand: a natural canasta and nothing else, so laying it all
-    // down would leave nothing behind.
+    // opening meld is itself a natural canasta, so the go-out canasta requirement
+    // is satisfied without any melds from a prior turn (which is what "concealed" means).
     state.hands[p1] = ['S', 'H', 'D', 'C', 'S', 'H'].map((s) => card('7', s));
     state.stock.push(card('7', 'D'));
     applyAction(state, { type: 'DRAW_STOCK', playerId: p1 });
-
     const res = applyAction(state, {
       type: 'OPEN_MELD',
       playerId: p1,
       groups: [state.hands[p1].map((c) => c.id)],
     });
-    expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/at least 2 cards/i);
-    expect(state.initialMeldMade[team]).toBe(false);
-    expect(state.roundOver).toBe(false);
-    expect(state.hands[p1]).toHaveLength(7);
+    expect(res.ok).toBe(true);
+    expect(res.roundEnded).toBe(true);
+    expect(state.concealedGoOut).toBe(true);
+    expect(state.lastRoundSummary.roundScores[team]).toBeGreaterThanOrEqual(500);
   });
 
   it('blocks only the immediate next player from taking the discard pile after a black 3', () => {
@@ -296,7 +322,7 @@ describe('engine — 1v1 game flow', () => {
     expect(blocked.error).toMatch(/blocked/i);
   });
 
-  it('never melds black 3s, since no play may empty a hand any more', () => {
+  it('only allows melding black 3s as the closing play, scored at plain card value with no bonus', () => {
     const team = teamOf(state, p1);
     state.initialMeldMade[team] = true;
     state.hasMeldedThisRound[team] = true;
@@ -314,17 +340,18 @@ describe('engine — 1v1 game flow', () => {
     });
     expect(tooEarly.ok).toBe(false);
 
-    // Nor as the closing play, because the floor forbids laying the hand bare.
     state.hands[p1] = [card('3', 'S'), card('3', 'C'), card('3', 'S')];
+    const scoreBeforeClosing = state.scores[team];
     const closing = applyAction(state, {
       type: 'MELD',
       playerId: p1,
       cardIds: state.hands[p1].map((c) => c.id),
     });
-    expect(closing.ok).toBe(false);
-    expect(closing.error).toMatch(/at least 2 cards/i);
-    expect(state.melds[team]['3']).toBeUndefined();
-    expect(state.roundOver).toBe(false);
+    expect(closing.ok).toBe(true);
+    expect(closing.roundEnded).toBe(true);
+    // 3 black 3s at 5 pts each, the natural 7-canasta (7*5 + 500), +100 go-out bonus, no black-3 bonus.
+    const expectedGain = 3 * 5 + (7 * 5 + 500) + 100;
+    expect(state.scores[team] - scoreBeforeClosing).toBe(expectedGain);
   });
 });
 
@@ -438,7 +465,7 @@ describe('taking the discard pile', () => {
     expect(state.discard).toHaveLength(2);
   });
 
-  it('refuses a pickup that would leave fewer than two cards in hand', () => {
+  it('refuses a pickup that would strip the hand with no canasta to go out on', () => {
     // Nothing buried under the top card, so the whole hand goes down and
     // nothing comes back to replace it.
     state.discard = [card('9', 'C')];
@@ -449,7 +476,7 @@ describe('taking the discard pile', () => {
       cardIds: state.hands[p1].map((c) => c.id),
     });
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/at least 2 cards/i);
+    expect(res.error).toMatch(/canasta/i);
     expect(state.discard).toHaveLength(1);
   });
 

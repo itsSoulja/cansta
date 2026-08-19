@@ -30,10 +30,12 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const inAction = isYourTurn && game.phase === 'action';
   const canDiscardHere = inAction && selected.length === 1;
   const canTakePile = inDraw && game.canTakeDiscard;
-  // A hand never empties, so laying down is capped by what must stay behind.
-  // The pile is exempt: the buried cards come back the other way.
+  // A turn ends holding a card unless it is the turn that ends the round, so
+  // going under two needs a canasta to go out on. This only warns: the meld
+  // being laid down may be the canasta itself, and the server settles it.
   const MIN_HAND = 2;
-  const wouldStripHand = selected.length > 0 && game.yourHand.length - selected.length < MIN_HAND;
+  const wouldStripHand =
+    selected.length > 0 && game.yourHand.length - selected.length < MIN_HAND && !game.yourTeamHasCanasta;
 
   const selectedCards = useMemo(
     () => selected.map((id) => game.yourHand.find((c) => c.id === id)).filter(Boolean),
@@ -235,12 +237,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
           </span>
 
           {inAction && selected.length > 0 && (
-            <button
-              className="btn btn--primary"
-              onClick={layDown}
-              disabled={wouldStripHand}
-              title={wouldStripHand ? `${MIN_HAND} cards must stay in your hand` : undefined}
-            >
+            <button className="btn btn--primary" onClick={layDown}>
               {opened ? `Lay down ${groups.length > 1 ? `${groups.length} melds` : 'meld'}` : 'Open with these'}
             </button>
           )}
@@ -255,7 +252,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             </button>
           )}
           {inAction && wouldStripHand && (
-            <span className="action-bar__note">that leaves too few cards — {MIN_HAND} must stay in your hand</span>
+            <span className="action-bar__note">that leaves too few cards to finish the turn — going out needs a canasta</span>
           )}
           {inDraw && selected.length > 0 && (
             <span className="action-bar__note">draw or take the pile first — then a meld will take these</span>

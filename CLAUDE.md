@@ -49,7 +49,7 @@ One `state` object per room holds the whole match across rounds. Load-bearing de
 - `hasMeldedThisRound` vs `turnStartMelded`: the latter is snapshotted in `advanceTurn` so the concealed go-out bonus can tell "melded before this turn" from "melded during it".
 - `initialMeldMade[team]` gates melding and pile pickup, sets the sign of the red 3 bonus at scoring time, and its threshold scales with cumulative score (50/90/120).
 - A meld must be built on naturals: wilds strictly fewer than naturals, and at most three wilds however long the meld grows (`MAX_WILDS` in `game/meld.js`).
-- A hand never empties (`MIN_HAND` in `game/engine.js`): no lay-down may leave fewer than 2 cards, a discard may not take the last one, and the pile needs more than 2 in hand to reach for. Going out is therefore unreachable — the go-out, concealed and black-3-closing branches in the handlers stay in place but never fire, and a round ends when the stock runs dry. Relaxing the floor brings them all back.
+- A turn ends with a card still in hand unless it is the turn that ends the round (`goingOutBlocked` in `game/engine.js`). A lay-down may leave one card — the discard then takes it as you go out — or none at all, but only when the side has a canasta. Without one, stopping at a single card would strand a player who can neither discard nor meld, with the turn unable to end. Taking the pile is separate: it needs more than 2 cards in hand, since it costs you cards before the buried ones arrive.
 - Match ends at 5000 points.
 
 ### Modes

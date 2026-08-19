@@ -3,12 +3,22 @@ import { meldShape, meldValue } from './meld.js';
 import { computeRoundScore, initialMeldThreshold } from './scoring.js';
 import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound, pushEvent } from './state.js';
 
-// House rule: a hand never empties. Laying cards down may not take you below
-// MIN_HAND, and the pile is out of reach until you hold one more than that —
-// taking it costs you cards before the buried ones arrive. Going out is
-// therefore unreachable, and a round ends when the stock runs dry.
+// A turn ends with a card still in hand — unless it is the turn that ends the
+// round. So laying cards down may take you to one card, which the discard then
+// takes with you as you go out, or straight to none; but only when the side has
+// a canasta and may legally go out. Without one, stopping at a single card
+// would leave a player who cannot discard and cannot meld, with the turn stuck.
+// The pile is a separate matter: it costs you cards before the buried ones
+// arrive, so it stays out of reach of a hand this small.
 const MIN_HAND = 2;
-const KEEP_HAND = `You must keep at least ${MIN_HAND} cards in hand`;
+const NO_CANASTA = 'Cannot go out without a completed canasta';
+const KEEP_ONE = 'Keep a card to discard — going out needs a completed canasta';
+
+function goingOutBlocked(remaining, melds) {
+  if (remaining >= MIN_HAND) return null;
+  if (Object.values(melds).some((shape) => shape.isCanasta)) return null;
+  return remaining === 0 ? NO_CANASTA : KEEP_ONE;
+}
 
 function extractCards(hand, cardIds) {
   const remaining = hand.slice();
@@ -185,16 +195,12 @@ function handleTakeDiscard(state, { playerId, cardIds, groups }) {
   const restOfPile = state.discard.slice(0, -1);
   const newHand = [...remaining, ...restOfPile];
 
-  if (newHand.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
+  const hypotheticalMelds = { ...state.melds[team] };
+  for (const { shape } of laid) hypotheticalMelds[shape.rank] = shape;
+  const floorError = goingOutBlocked(newHand.length, hypotheticalMelds);
+  if (floorError) return { ok: false, error: floorError };
 
   const wouldEmptyHand = newHand.length === 0;
-  if (wouldEmptyHand) {
-    const hypotheticalMelds = { ...state.melds[team] };
-    for (const { shape } of laid) hypotheticalMelds[shape.rank] = shape;
-    if (!Object.values(hypotheticalMelds).some((s) => s.isCanasta)) {
-      return { ok: false, error: 'Cannot go out without a completed canasta' };
-    }
-  }
 
   pushEvent(state, {
     type: 'TAKE_DISCARD',
@@ -259,12 +265,11 @@ function handleOpenMeld(state, { playerId, groups = [] }) {
     return { ok: false, error: `Opening meld must be worth at least ${threshold} points (this is worth ${totalValue})` };
   }
 
-  if (remaining.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
+  const openedMelds = Object.fromEntries(shapes.map((shape) => [shape.rank, shape]));
+  const floorError = goingOutBlocked(remaining.length, openedMelds);
+  if (floorError) return { ok: false, error: floorError };
 
   const wouldEmptyHand = remaining.length === 0;
-  if (wouldEmptyHand && !shapes.some((s) => s.isCanasta)) {
-    return { ok: false, error: 'Cannot go out without a completed canasta' };
-  }
 
   state.hands[playerId] = remaining;
   for (const shape of shapes) {
@@ -314,15 +319,10 @@ function handleMeld(state, { playerId, cardIds = [], targetRank }) {
     return { ok: false, error: 'Black 3s can only be melded when going out' };
   }
 
-  if (extracted.remaining.length < MIN_HAND) return { ok: false, error: KEEP_HAND };
+  const floorError = goingOutBlocked(extracted.remaining.length, { ...state.melds[team], [shape.rank]: shape });
+  if (floorError) return { ok: false, error: floorError };
 
   const wouldEmptyHand = extracted.remaining.length === 0;
-  if (wouldEmptyHand) {
-    const hypotheticalMelds = { ...state.melds[team], [shape.rank]: shape };
-    if (!Object.values(hypotheticalMelds).some((s) => s.isCanasta)) {
-      return { ok: false, error: 'Cannot go out without a completed canasta' };
-    }
-  }
 
   state.hands[playerId] = extracted.remaining;
   state.melds[team][shape.rank] = shape;
@@ -355,11 +355,9 @@ function handleDiscard(state, { playerId, cardId }) {
   const card = hand[idx];
   const team = teamOf(state, playerId);
 
-  if (hand.length <= MIN_HAND - 1) return { ok: false, error: KEEP_HAND };
-
   const wouldEmptyHand = hand.length === 1;
   if (wouldEmptyHand && !teamHasCanasta(state, team)) {
-    return { ok: false, error: 'Cannot go out without a completed canasta' };
+    return { ok: false, error: NO_CANASTA };
   }
 
   const newHand = hand.slice();

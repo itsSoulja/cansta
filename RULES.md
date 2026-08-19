@@ -109,9 +109,13 @@ threshold rises with your cumulative score:
 
 | Your side's score so far | Opening must be worth |
 | --- | --- |
-| under 1500 | **50** |
+| below 0 | **15** |
+| 0 – 1499 | **50** |
 | 1500 – 2999 | **90** |
 | 3000 and up | **120** |
+
+A side in the red opens on 15 — the standard concession that lets a team that has
+been hammered get back onto the table.
 
 Everything you lay down on that turn counts toward the total together — that is
 why the opening flow stages several groups before sending them. **Black 3s can

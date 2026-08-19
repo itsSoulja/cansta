@@ -337,7 +337,11 @@ body.has-egg .table-glow { opacity: 0.4; }
 }
 .pile--stock::before { translate: 4px 4px; }
 .pile--stock::after { translate: 2px 2px; }
-.pile--stock > * { position: relative; z-index: 1; }
+/* The back has to sit above those two. It must be a block box to do it: a
+   z-index on an inline span does not lift a block-level child out from under
+   the button's own pseudo-elements — which is how the back came to be hidden
+   behind the felt entirely. */
+.pile__stack { display: block; position: relative; z-index: 1; }
 .pile__empty {
   display: block;
   width: calc(var(--card-w) * 1.14);
@@ -434,18 +438,43 @@ body.has-egg .table-glow { opacity: 0.4; }
   padding-top: 1.4rem;
 }
 .hand-fan__slot {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   margin: 0 calc(var(--card-w) * -0.32);
   transform: rotate(var(--rot)) translateY(var(--lift));
   transform-origin: 50% 135%;
-  transition: transform 0.16s var(--ease), filter 0.16s;
   z-index: var(--i);
+  /* The slot answers no pointer itself; its ::after strip does. */
+  pointer-events: none;
 }
-.hand-fan__slot:hover {
-  transform: rotate(var(--rot)) translateY(calc(var(--lift) - 30px)) scale(1.07);
-  z-index: 99;
-  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5)) brightness(1.06);
+/* Exactly the sliver of the card its right-hand neighbour leaves showing —
+   0.36 of a width, which is the fan's step, so the strips tile edge to edge
+   with no gap and no overlap. They never move, so sliding along the fan always
+   lands on the next card rather than sticking on the raised one. */
+.hand-fan__slot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--card-w) * 0.36);
+  pointer-events: auto;
+  cursor: pointer;
 }
-.hand-fan__slot:hover .playing-card { box-shadow: 0 0 0 2px var(--glow), var(--shadow-card); }
+.hand-fan__slot:last-child::after { width: 100%; }
+.hand-fan__slot .playing-card {
+  pointer-events: none;
+  transition: transform 0.16s var(--ease), box-shadow 0.16s;
+}
+.hand-fan__slot:hover { z-index: 99; }
+.hand-fan__slot:hover .playing-card {
+  transform: translateY(-30px) scale(1.07);
+  box-shadow: 0 0 0 2px var(--glow), 0 12px 22px rgb(0 0 0 / 0.5), var(--shadow-card);
+}
 
 /* ── Flight overlay ──────────────────────────────────────────────────── */
 .flight-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }

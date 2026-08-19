@@ -89,14 +89,16 @@ export function RulesBook({ onClose }) {
             </p>
             <table className="rules-book__table">
               <tbody>
-                <tr><td>under 1500 points</td><td><strong>50</strong></td></tr>
+                <tr><td>below zero</td><td><strong>15</strong></td></tr>
+                <tr><td>0 – 1499</td><td><strong>50</strong></td></tr>
                 <tr><td>1500 – 2999</td><td><strong>90</strong></td></tr>
                 <tr><td>3000 and up</td><td><strong>120</strong></td></tr>
               </tbody>
             </table>
             <p className="rules-book__note">
               Everything you put down on that one turn counts toward the total together — which is why the table lets
-              you stage several sets before laying them all at once. Black threes can never be part of an opening.
+              you stage several sets before laying them all at once. Black threes can never be part of an opening. If your
+              side has been driven below zero, the bar drops to 15 so you can get back on the table.
             </p>
           </Section>
 

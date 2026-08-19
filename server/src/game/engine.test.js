@@ -85,8 +85,9 @@ describe('canastaBonus', () => {
 });
 
 describe('initialMeldThreshold', () => {
-  it('follows the 3-tier scale', () => {
-    expect(initialMeldThreshold(-100)).toBe(50);
+  it('follows the scale, and drops to 15 for a side in the red', () => {
+    expect(initialMeldThreshold(-1)).toBe(15);
+    expect(initialMeldThreshold(-100)).toBe(15);
     expect(initialMeldThreshold(0)).toBe(50);
     expect(initialMeldThreshold(1499)).toBe(50);
     expect(initialMeldThreshold(1500)).toBe(90);

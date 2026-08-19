@@ -1,7 +1,10 @@
 import { meldValue } from './meld.js';
 import { pointValue } from './card.js';
 
+// A side in the red opens on 15 — the standard concession that lets a team
+// that has been hammered get back on the table.
 export function initialMeldThreshold(cumulativeScore) {
+  if (cumulativeScore < 0) return 15;
   if (cumulativeScore >= 3000) return 120;
   if (cumulativeScore >= 1500) return 90;
   return 50;

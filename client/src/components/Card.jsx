@@ -1,3 +1,5 @@
+import { CardFace, CardBackArt } from './CardArt.jsx';
+
 const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
 export function cardLabel(card) {
@@ -37,8 +39,8 @@ export function sortHand(cards) {
 }
 
 export function Card({ card, selected, onClick, disabled, size, style, className = '', innerRef, static: isStatic }) {
-  const red = card.rank !== 'JOKER' && isRedCard(card);
-  const symbol = card.rank === 'JOKER' ? '★' : SUIT_SYMBOL[card.suit];
+  // Jokers carry no suit; a rider-back deck prints them in red.
+  const red = card.rank === 'JOKER' || isRedCard(card);
   const classes = [
     'playing-card',
     size ? `playing-card--${size}` : '',
@@ -50,19 +52,7 @@ export function Card({ card, selected, onClick, disabled, size, style, className
     .filter(Boolean)
     .join(' ');
 
-  const face = (
-    <>
-      <span className="playing-card__index">
-        <span className="playing-card__rank">{card.rank === 'JOKER' ? 'JK' : card.rank}</span>
-        <span className="playing-card__suit">{symbol}</span>
-      </span>
-      <span className="playing-card__pip">{symbol}</span>
-      <span className="playing-card__index playing-card__index--flip">
-        <span className="playing-card__rank">{card.rank === 'JOKER' ? 'JK' : card.rank}</span>
-        <span className="playing-card__suit">{symbol}</span>
-      </span>
-    </>
-  );
+  const face = <CardFace rank={card.rank} suit={card.suit} red={red} />;
 
   if (isStatic) {
     return (
@@ -79,14 +69,14 @@ export function Card({ card, selected, onClick, disabled, size, style, className
   );
 }
 
-export function CardBack({ size, style, className = '', innerRef }) {
+export function CardBack({ size, style, className = '', innerRef, variant }) {
   return (
     <div
       ref={innerRef}
       className={`playing-card playing-card--back ${size ? `playing-card--${size}` : ''} ${className}`}
       style={style}
     >
-      <span className="playing-card__emblem">C</span>
+      <CardBackArt variant={variant} />
     </div>
   );
 }

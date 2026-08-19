@@ -72,9 +72,9 @@ body {
   height: var(--h);
   flex: 0 0 auto;
   padding: 0;
-  border-radius: calc(var(--w) * 0.11);
-  border: 1px solid hsl(0 0% 100% / 0.7);
-  background: linear-gradient(158deg, #ffffff 0%, #f6f7fa 58%, #e8eaf1 100%);
+  border-radius: calc(var(--w) * 0.075);
+  border: none;
+  background: var(--paper);
   box-shadow: var(--shadow-card);
   font-family: inherit;
   cursor: default;
@@ -88,66 +88,36 @@ button.playing-card { cursor: pointer; }
 .playing-card--tiny { --w: calc(var(--card-w) * 0.44); --h: calc(var(--card-h) * 0.44); }
 .playing-card--large { --w: calc(var(--card-w) * 1.14); --h: calc(var(--card-h) * 1.14); }
 
+/* The whole card is one SVG; this is the paper it is printed on. */
+.card-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Rounded edge + a hint of gloss, over the art but under nothing. */
 .playing-card::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(120deg, hsl(0 0% 100% / 0.5), transparent 42%);
+  box-shadow: inset 0 0 0 1px hsl(30 12% 62% / 0.55);
+  background: linear-gradient(118deg, hsl(0 0% 100% / 0.34), transparent 38%);
   pointer-events: none;
 }
 
-.playing-card__index {
-  position: absolute;
-  top: calc(var(--h) * 0.045);
-  left: calc(var(--w) * 0.07);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 0.94;
-  font-weight: 800;
-}
-.playing-card__index--flip {
-  top: auto;
-  left: auto;
-  bottom: calc(var(--h) * 0.045);
-  right: calc(var(--w) * 0.07);
-  transform: rotate(180deg);
-}
-.playing-card__rank { font-size: calc(var(--w) * 0.28); letter-spacing: -0.04em; }
-.playing-card__suit { font-size: calc(var(--w) * 0.24); }
-.playing-card__pip {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: calc(var(--w) * 0.62);
-  opacity: 0.15;
-}
-.playing-card--wild {
-  background: linear-gradient(158deg, #fffdf2 0%, #fdf3d4 60%, #f6e4ad 100%);
-  border-color: hsl(45 80% 78%);
+/* Wilds keep their real face — a gold edge marks them instead. */
+.playing-card--wild::after {
+  box-shadow: inset 0 0 0 2px hsl(44 80% 52% / 0.85), inset 0 0 10px hsl(44 85% 55% / 0.28);
 }
 
 .playing-card--back {
-  background:
-    repeating-linear-gradient(45deg, hsl(var(--felt-hue) 40% 24%) 0 6px, hsl(var(--felt-hue) 45% 19%) 6px 12px),
-    hsl(var(--felt-hue) 45% 20%);
-  border: 1px solid hsl(var(--felt-hue) 30% 45% / 0.7);
-  display: grid;
-  place-items: center;
+  background: var(--paper);
 }
-.playing-card__emblem {
-  width: 54%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: hsl(var(--felt-hue) 40% 14%);
-  border: 2px solid var(--glow-soft);
-  color: var(--glow);
-  font-weight: 800;
-  font-size: calc(var(--w) * 0.3);
+.playing-card.is-selected { box-shadow: 0 0 0 2px var(--glow), 0 0 14px var(--glow-soft), var(--shadow-card); }
+
+.playing-card--back::after {
+  background: linear-gradient(118deg, hsl(0 0% 100% / 0.16), transparent 42%);
 }
 
 .is-flying { visibility: hidden; }
@@ -475,7 +445,7 @@ body.has-egg .table-glow { opacity: 0.4; }
   z-index: 99;
   filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5)) brightness(1.06);
 }
-.hand-fan__slot:hover .playing-card { border-color: var(--glow); box-shadow: 0 0 0 2px var(--glow-soft), var(--shadow-card); }
+.hand-fan__slot:hover .playing-card { box-shadow: 0 0 0 2px var(--glow), var(--shadow-card); }
 
 /* ── Flight overlay ──────────────────────────────────────────────────── */
 .flight-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
@@ -523,6 +493,26 @@ body.has-egg .table-glow { opacity: 0.4; }
 .portal__sub { margin: -0.6rem 0 0.6rem; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
 .portal__error { margin: 0; padding: 0.6rem 0.9rem; border-radius: 10px; background: hsl(0 70% 35% / 0.35); color: hsl(0 90% 85%); font-size: 0.85rem; }
 .portal__wait { text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+.portal__back {
+  position: absolute;
+  top: 1.5rem;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.38rem 0.9rem 0.38rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--felt-hue) 20% 60% / 0.3);
+  background: hsl(var(--felt-hue) 30% 12% / 0.6);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), color 0.15s, border-color 0.15s, background 0.15s;
+}
+.portal__back:hover { color: var(--text); border-color: var(--glow-soft); background: hsl(var(--felt-hue) 30% 18% / 0.8); transform: translateX(-2px); }
+.portal__back-arrow { font-size: 1.05em; line-height: 1; }
 
 .panel { padding: 1.1rem; border-radius: 16px; background: hsl(var(--felt-hue) 35% 10% / 0.62); border: 1px solid hsl(var(--felt-hue) 25% 50% / 0.22); display: flex; flex-direction: column; gap: 0.8rem; }
 .panel--code { align-items: center; gap: 0.3rem; }

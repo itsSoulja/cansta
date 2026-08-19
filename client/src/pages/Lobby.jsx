@@ -7,6 +7,12 @@ export function Lobby({ lobby, myId, onStart, onLeave, error }) {
     <div className="portal">
       <div className="portal__glow" />
       <div className="portal__inner">
+        {/* A lobby is easy to open by mistake, so the way out sits where a
+            back button always sits rather than at the foot of the page. */}
+        <button type="button" className="portal__back" onClick={onLeave}>
+          <span className="portal__back-arrow" aria-hidden="true">←</span>
+          Back
+        </button>
         <h1 className="portal__title">Cansta</h1>
 
         <section className="panel panel--code">
@@ -46,10 +52,6 @@ export function Lobby({ lobby, myId, onStart, onLeave, error }) {
         ) : (
           <p className="portal__wait">Waiting for the host to start…</p>
         )}
-
-        <button className="btn btn--ghost btn--wide" onClick={onLeave}>
-          Leave the table
-        </button>
       </div>
     </div>
   );

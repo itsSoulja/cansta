@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cansta — a real-time multiplayer Canasta game. npm workspaces: `server` (Express + socket.io, authoritative game engine) and `client` (React 19 + Vite). No TypeScript, no build step on the server.
 
+`RULES.md` at the repo root describes how the game plays, section by section, with the file that owns each rule. It is a description of the engine rather than a second source of truth — if the two disagree, the engine is right and the doc needs correcting.
+
 ## Commands
 
 ```bash

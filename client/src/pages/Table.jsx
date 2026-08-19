@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CardGuideHold } from '../components/CardGuide.jsx';
 import { CenterPiles } from '../components/CenterPiles.jsx';
 import { HandFan } from '../components/HandFan.jsx';
 import { MeldArea, RedThreeZone } from '../components/MeldArea.jsx';
@@ -163,6 +164,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
       <header className="table-top">
         <span className="table-top__brand">
           Cansta <span className="table-top__round">Round {game.round}</span>
+          <CardGuideHold game={game} />
         </span>
         <ScorePanel game={game} nameFor={nameFor} />
       </header>

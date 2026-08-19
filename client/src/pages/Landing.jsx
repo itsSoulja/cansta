@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RulesBook } from '../components/RulesBook.jsx';
 
 const MODES = [
   { id: '1v1', label: '1v1', blurb: 'Head to head', seats: 2 },
@@ -12,6 +13,7 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
   const [mode, setMode] = useState('1v1');
   const [packCount, setPackCount] = useState(2);
   const [joinCode, setJoinCode] = useState('');
+  const [showRules, setShowRules] = useState(false);
 
   const named = name.trim().length > 0;
 
@@ -19,6 +21,10 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
     <div className="portal">
       <div className="portal__glow" />
       <div className="portal__inner">
+        <button type="button" className="portal__help" onClick={() => setShowRules(true)}>
+          <span className="portal__help-mark" aria-hidden="true">?</span>
+          How to play
+        </button>
         <h1 className="portal__title">Cansta</h1>
         <p className="portal__sub">Canasta, dealt fast and played with friends.</p>
 
@@ -86,6 +92,8 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
           </div>
         </section>
       </div>
+
+      {showRules && <RulesBook onClose={() => setShowRules(false)} />}
     </div>
   );
 }

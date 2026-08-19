@@ -19,6 +19,14 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// The client is served from another origin in the split deploy (Cloudflare
+// Pages talking to Render), so these routes have to say they may be read
+// cross-origin. socket.io sets its own CORS and does not cover plain routes.
+app.use('/easter-egg', (req, res, next) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  next();
+});
+
 // Easter eggs. The pictures are never part of the client bundle and there is
 // no endpoint that lists them: you ask with a name, and only a name close
 // enough to one of the files comes back with the digest that fetches it.

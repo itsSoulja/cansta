@@ -38,6 +38,7 @@ export function redactStateFor(state, viewerId) {
     mode: state.mode,
     packCount: state.packCount,
     playerIds: state.playerIds,
+    turnOrder: state.turnOrder,
     teamsByPlayer: state.teamsByPlayer,
     teams: state.teams,
     round: state.round,

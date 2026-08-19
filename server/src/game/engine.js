@@ -1,7 +1,15 @@
 import { isRedThree, isBlackThree, isWild } from './card.js';
 import { meldShape, meldValue } from './meld.js';
 import { computeRoundScore, initialMeldThreshold } from './scoring.js';
-import { currentPlayerId, teamOf, teamMeldShapes, teamHasCanasta, startRound, pushEvent } from './state.js';
+import {
+  currentPlayerId,
+  teamOf,
+  teamMeldShapes,
+  teamHasCanasta,
+  startRound,
+  rotateSeating,
+  pushEvent,
+} from './state.js';
 
 // A turn ends with a card still in hand — unless it is the turn that ends the
 // round. So laying cards down may take you to one card, which the discard then
@@ -400,6 +408,7 @@ export function startNextRound(state, rng = Math.random) {
   if (state.matchOver) return { ok: false, error: 'The match is already over' };
   if (!state.roundOver) return { ok: false, error: 'The current round is not over yet' };
   state.round += 1;
+  rotateSeating(state, rng);
   startRound(state, rng);
   return { ok: true };
 }

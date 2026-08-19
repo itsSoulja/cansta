@@ -53,20 +53,20 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   // Seat the opponents in turn order starting from the player after you, so the
   // turn visibly travels around the table.
   const opponents = useMemo(() => {
-    const order = game.playerIds;
+    const order = game.turnOrder;
     const mine = order.indexOf(myId);
     return order.slice(mine + 1).concat(order.slice(0, mine));
-  }, [game.playerIds, myId]);
+  }, [game.turnOrder, myId]);
 
   // In 2v2 a team shares one meld area: yours sits in front of you, theirs in
   // front of the first opponent on that team.
   const meldSeatByTeam = useMemo(() => {
     const map = {};
     for (const team of game.teams) {
-      map[team] = team === game.yourTeam ? myId : game.playerIds.find((pid) => game.teamsByPlayer[pid] === team);
+      map[team] = team === game.yourTeam ? myId : game.turnOrder.find((pid) => game.teamsByPlayer[pid] === team);
     }
     return map;
-  }, [game.teams, game.yourTeam, game.playerIds, game.teamsByPlayer, myId]);
+  }, [game.teams, game.yourTeam, game.turnOrder, game.teamsByPlayer, myId]);
 
   const clearSelection = () => {
     setSelected([]);

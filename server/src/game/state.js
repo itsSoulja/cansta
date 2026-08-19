@@ -86,7 +86,10 @@ export function createMatch({ mode, packCount, playerIds, rng = Math.random }) {
     playerIds,
     teamsByPlayer,
     teams,
-    turnOrder: playerIds,
+    turnOrder: [...playerIds],
+    // Who deals first is drawn out of a hat, so hosting a room is no longer
+    // worth a free head start; from there it walks one seat left each round.
+    startingPlayerId: playerIds[Math.floor(rng() * playerIds.length)],
     currentTurnIndex: 0,
     phase: 'draw',
     hands: {},
@@ -112,6 +115,39 @@ export function createMatch({ mode, packCount, playerIds, rng = Math.random }) {
   return state;
 }
 
+// Two seatings are the same table if one is a rotation of the other: every
+// player still has the same neighbours, and the client draws the ring from each
+// viewer's own seat, so nobody would see a thing change.
+function sameTable(a, b) {
+  const start = a.indexOf(b[0]);
+  return b.every((pid, i) => a[(start + i) % a.length] === pid);
+}
+
+// Everyone moves seats between rounds. A free-for-all can be shuffled outright;
+// in 2v2 the two pairs are shuffled separately and then interleaved, so
+// partners keep sitting opposite each other and `assignTeams` still holds.
+function reseat(state, rng) {
+  if (state.mode !== '2v2') return shuffle(state.turnOrder, rng);
+  const pairs = state.teams.map((team) =>
+    shuffle(state.turnOrder.filter((pid) => state.teamsByPlayer[pid] === team), rng),
+  );
+  return pairs[0].flatMap((pid, i) => [pid, pairs[1][i]]);
+}
+
+// Between rounds the deal passes to the left — read off the seating the round
+// was played in, before that seating is thrown away — and then everyone shuffles
+// round the table. Small tables run out of arrangements (heads-up has only the
+// one), so an unchanged seating is accepted rather than chased forever.
+export function rotateSeating(state, rng = Math.random) {
+  const seated = state.turnOrder;
+  const idx = seated.indexOf(state.startingPlayerId);
+  state.startingPlayerId = seated[(idx + 1) % seated.length];
+
+  let next = reseat(state, rng);
+  for (let tries = 0; tries < 8 && sameTable(next, seated); tries++) next = reseat(state, rng);
+  state.turnOrder = next;
+}
+
 export function startRound(state, rng = Math.random) {
   const dealt = dealRound({
     packCount: state.packCount,
@@ -129,7 +165,7 @@ export function startRound(state, rng = Math.random) {
   state.hasMeldedThisRound = Object.fromEntries(state.teams.map((t) => [t, false]));
   state.turnStartMelded = { ...state.hasMeldedThisRound };
   state.discardBlockedFor = null;
-  state.currentTurnIndex = 0;
+  state.currentTurnIndex = Math.max(0, state.turnOrder.indexOf(state.startingPlayerId));
   state.phase = 'draw';
   state.roundOver = false;
   state.wentOutTeam = null;

@@ -1,12 +1,15 @@
+import { LobbyTable } from '../components/LobbyTable.jsx';
+
+const MODE_LABEL = { free: 'Free-for-all', teams: 'Teams' };
+
 export function Lobby({ lobby, myId, onStart, onLeave, error }) {
   const isHost = lobby.hostPlayerId === myId;
-  const full = lobby.seats.every((s) => s !== null);
-  const taken = lobby.seats.filter(Boolean).length;
+  const ready = !lobby.startBlocker;
 
   return (
     <div className="portal">
       <div className="portal__glow" />
-      <div className="portal__inner">
+      <div className="portal__inner portal__inner--wide">
         {/* A lobby is easy to open by mistake, so the way out sits where a
             back button always sits rather than at the foot of the page. */}
         <button type="button" className="portal__back" onClick={onLeave}>
@@ -18,39 +21,28 @@ export function Lobby({ lobby, myId, onStart, onLeave, error }) {
         <section className="panel panel--code">
           <span className="panel__title">Room code</span>
           <strong className="room-code">{lobby.code}</strong>
-          <p className="panel__hint">Share it — anyone with the code can take a seat.</p>
+          <p className="panel__hint">
+            {MODE_LABEL[lobby.mode] ?? lobby.mode} · {lobby.minSeats}–{lobby.maxSeats} players. Share the code — anyone
+            with it can pull up a chair.
+          </p>
         </section>
 
         {error && <p className="portal__error">{error}</p>}
 
-        <section className="panel">
-          <h2 className="panel__title">
-            Seats <span className="panel__count">{taken}/{lobby.seats.length}</span>
-            <span className="panel__mode">
-              {lobby.mode}
-              {lobby.mode !== '1v1' && ` · ${lobby.packCount} packs`}
-            </span>
-          </h2>
-          <ul className="seat-list">
-            {lobby.seats.map((seat, i) => (
-              <li key={i} className={`seat-list__row${seat ? ' is-filled' : ''}`}>
-                <span className="seat-list__avatar">{seat ? seat.name.slice(0, 1).toUpperCase() : '·'}</span>
-                <span className="seat-list__name">
-                  {seat ? seat.name : 'waiting…'}
-                  {seat?.playerId === myId && <span className="seat-list__you">you</span>}
-                  {seat?.playerId === lobby.hostPlayerId && <span className="seat-list__host">host</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <LobbyTable
+          seats={lobby.seats}
+          myPlayerId={myId}
+          hostPlayerId={lobby.hostPlayerId}
+          mode={lobby.mode}
+          waitingFor={lobby.startBlocker}
+        />
 
         {isHost ? (
-          <button className="btn btn--primary btn--wide" disabled={!full} onClick={onStart}>
-            {full ? 'Start the game' : `Waiting for ${lobby.seats.length - taken} more…`}
+          <button className="btn btn--primary btn--wide" disabled={!ready} onClick={onStart}>
+            {ready ? `Deal the cards — ${lobby.seats.length} playing` : lobby.startBlocker}
           </button>
         ) : (
-          <p className="portal__wait">Waiting for the host to start…</p>
+          <p className="portal__wait">{ready ? 'Ready — waiting for the host to deal…' : lobby.startBlocker}</p>
         )}
       </div>
     </div>

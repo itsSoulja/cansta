@@ -3,12 +3,14 @@ import { isRedThree, isBlackThree, isWild } from './card.js';
 
 const HAND_SIZE = 14;
 
-// Every mode except 2v2 is a free-for-all: each seat is its own team, so the
-// scoring, opening-threshold and go-out rules all apply per player unchanged.
+// In a free-for-all each seat is its own team, so the scoring, opening-threshold
+// and go-out rules all apply per player unchanged. Team mode splits the seats
+// alternately into two sides, however many are at the table, which is what puts
+// partners opposite each other.
 function assignTeams(mode, seatOrder) {
   const teamsByPlayer = {};
   seatOrder.forEach((pid, idx) => {
-    teamsByPlayer[pid] = mode === '2v2' ? idx % 2 : idx;
+    teamsByPlayer[pid] = mode === 'teams' ? idx % 2 : idx;
   });
   return teamsByPlayer;
 }
@@ -124,10 +126,10 @@ function sameTable(a, b) {
 }
 
 // Everyone moves seats between rounds. A free-for-all can be shuffled outright;
-// in 2v2 the two pairs are shuffled separately and then interleaved, so
+// in team mode the two sides are shuffled separately and then interleaved, so
 // partners keep sitting opposite each other and `assignTeams` still holds.
 function reseat(state, rng) {
-  if (state.mode !== '2v2') return shuffle(state.turnOrder, rng);
+  if (state.mode !== 'teams') return shuffle(state.turnOrder, rng);
   const pairs = state.teams.map((team) =>
     shuffle(state.turnOrder.filter((pid) => state.teamsByPlayer[pid] === team), rng),
   );

@@ -1,8 +1,9 @@
 /* ── Tokens ──────────────────────────────────────────────────────────────
-   --felt-hue drives the whole table. 150 is card-room green; swap it to 355
-   for the red of the Uno reference and everything follows.                */
+   --felt-hue drives the whole table: felt, plates, buttons, text tints. 214
+   is the deep blue of a card-room baize; 152 is the green it used to be, and
+   355 the red of the Uno reference. Change the one number.                */
 :root {
-  --felt-hue: 152;
+  --felt-hue: 214;
   --felt-core: hsl(var(--felt-hue) 42% 27%);
   --felt-mid: hsl(var(--felt-hue) 48% 17%);
   --felt-edge: hsl(var(--felt-hue) 55% 7%);
@@ -179,7 +180,9 @@ body.has-egg .table-glow { opacity: 0.4; }
 .table-top__brand { font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.9rem; }
 .table-top__round { color: var(--text-dim); font-weight: 600; margin-left: 0.5rem; letter-spacing: 0.02em; }
 
-.scoreboard { display: flex; gap: 0.5rem; }
+.scoreboard { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.scoreboard--compact .scoreboard__team { padding: 0.25rem 0.5rem; font-size: 0.7rem; gap: 0.35rem; }
+.scoreboard--compact .scoreboard__name { max-width: 8ch; }
 .scoreboard__team {
   display: flex;
   align-items: center;
@@ -212,8 +215,16 @@ body.has-egg .table-glow { opacity: 0.4; }
 .seat--top { top: 3.4rem; left: 50%; translate: -50% 0; }
 .seat--upper-left { top: 4.2rem; left: 4%; }
 .seat--upper-right { top: 4.2rem; right: 4%; }
-.seat--left { top: 46%; left: 1.5%; translate: 0 -50%; }
-.seat--right { top: 46%; right: 1.5%; translate: 0 -50%; }
+.seat--left { top: 44%; left: 1.5%; translate: 0 -50%; }
+.seat--right { top: 44%; right: 1.5%; translate: 0 -50%; }
+
+/* Five or six at the table is a lot of fan to fit. The whole seat shrinks and
+   the ring opens out, so the flanks stop running into the corners above them. */
+.table-stage--crowded .seat { scale: 0.76; }
+.table-stage--crowded .seat--upper-left { top: 3rem; left: 15%; }
+.table-stage--crowded .seat--upper-right { top: 3rem; right: 15%; }
+.table-stage--crowded .seat--left { top: 50%; left: 0; }
+.table-stage--crowded .seat--right { top: 50%; right: 0; }
 
 .seat__plate {
   display: flex;
@@ -518,6 +529,7 @@ body.has-egg .table-glow { opacity: 0.4; }
 }
 .portal__glow { position: absolute; inset: 0; background: radial-gradient(circle 30% at 50% 22%, hsl(var(--felt-hue) 60% 50% / 0.3), transparent 70%); pointer-events: none; }
 .portal__inner { position: relative; width: min(30rem, 92vw); margin: 0 auto; padding: 3rem 0 3rem; display: flex; flex-direction: column; gap: 1rem; }
+.portal__inner--wide { width: min(34rem, 94vw); }
 .portal__title { margin: 0; font-size: 2.7rem; font-weight: 800; letter-spacing: -0.03em; text-align: center; }
 .portal__sub { margin: -0.6rem 0 0.6rem; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
 .portal__error { margin: 0; padding: 0.6rem 0.9rem; border-radius: 10px; background: hsl(0 70% 35% / 0.35); color: hsl(0 90% 85%); font-size: 0.85rem; }
@@ -546,8 +558,6 @@ body.has-egg .table-glow { opacity: 0.4; }
 .panel { padding: 1.1rem; border-radius: 16px; background: hsl(var(--felt-hue) 35% 10% / 0.62); border: 1px solid hsl(var(--felt-hue) 25% 50% / 0.22); display: flex; flex-direction: column; gap: 0.8rem; }
 .panel--code { align-items: center; gap: 0.3rem; }
 .panel__title { margin: 0; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
-.panel__count { color: var(--text); }
-.panel__mode { margin-left: auto; text-transform: none; letter-spacing: 0.02em; color: var(--glow); }
 .panel__hint { margin: 0; font-size: 0.8rem; color: var(--text-dim); }
 .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.28em; color: var(--glow); text-shadow: 0 0 30px var(--glow-soft); padding-left: 0.28em; }
 
@@ -567,6 +577,7 @@ body.has-egg .table-glow { opacity: 0.4; }
 .field__input--code { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.3em; text-align: center; text-transform: uppercase; flex: 1; }
 
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.mode-grid--pair .mode-card { padding: 0.9rem 1rem; gap: 0.2rem; }
 .mode-card {
   display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-start;
   padding: 0.7rem 0.8rem; border-radius: 12px; cursor: pointer; text-align: left;
@@ -583,13 +594,85 @@ body.has-egg .table-glow { opacity: 0.4; }
 
 .join-row { display: flex; gap: 0.5rem; }
 
-.seat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.seat-list__row { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.5rem; border-radius: 10px; background: hsl(var(--felt-hue) 40% 8% / 0.5); opacity: 0.55; }
-.seat-list__row.is-filled { opacity: 1; }
-.seat-list__avatar { width: 1.8rem; height: 1.8rem; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: linear-gradient(160deg, hsl(var(--felt-hue) 30% 42%), hsl(var(--felt-hue) 35% 26%)); }
-.seat-list__name { font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; }
-.seat-list__you, .seat-list__host { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.1rem 0.35rem; border-radius: 999px; background: hsl(0 0% 100% / 0.12); color: var(--text-dim); }
-.seat-list__host { background: hsl(48 90% 60% / 0.2); color: var(--glow); }
+/* ── The lobby's table ───────────────────────────────────────────────────
+   People arrive and sit down around it, you at the bottom, so the room fills
+   up in front of you rather than as a list of empty slots.               */
+.lobby-table {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.35 / 1;
+  margin: 0.2rem 0 0.4rem;
+}
+.lobby-table__felt {
+  position: absolute;
+  inset: 16% 12%;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.05rem;
+  background: radial-gradient(ellipse at 50% 40%, hsl(var(--felt-hue) 42% 30%), hsl(var(--felt-hue) 50% 16%));
+  border: 2px solid hsl(var(--felt-hue) 30% 45% / 0.5);
+  box-shadow: inset 0 0 60px hsl(var(--felt-hue) 60% 6% / 0.7), 0 18px 40px hsl(var(--felt-hue) 60% 5% / 0.5);
+}
+.lobby-table__count { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--glow); }
+.lobby-table__label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-dim); }
+.lobby-table__waiting {
+  margin-top: 0.5rem;
+  max-width: 11rem;
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.lobby-seat {
+  position: absolute;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 6.2rem;
+  text-align: center;
+  transition: left 0.4s var(--ease), top 0.4s var(--ease);
+  animation: seat-in 0.35s var(--ease) both;
+}
+@keyframes seat-in { from { opacity: 0; scale: 0.6; } to { opacity: 1; scale: 1; } }
+.lobby-seat__avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  background: linear-gradient(160deg, hsl(var(--felt-hue) 30% 46%), hsl(var(--felt-hue) 38% 26%));
+  border: 2px solid hsl(var(--felt-hue) 25% 62% / 0.45);
+  box-shadow: 0 6px 16px hsl(var(--felt-hue) 60% 5% / 0.55);
+}
+.lobby-seat.is-you .lobby-seat__avatar { border-color: var(--glow); box-shadow: 0 0 0 3px var(--glow-soft); }
+.lobby-seat--team0 .lobby-seat__avatar { background: linear-gradient(160deg, hsl(190 55% 45%), hsl(196 60% 26%)); }
+.lobby-seat--team1 .lobby-seat__avatar { background: linear-gradient(160deg, hsl(330 50% 50%), hsl(336 55% 30%)); }
+.lobby-seat__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lobby-seat__tags { display: flex; gap: 0.25rem; flex-wrap: wrap; justify-content: center; }
+.lobby-seat__tags em {
+  font-style: normal;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.12);
+  color: var(--text-dim);
+}
+.lobby-seat.is-you .lobby-seat__tags em:first-child { background: hsl(48 90% 60% / 0.2); color: var(--glow); }
 
 @media (max-width: 900px) { :root { --card-w: 62px; --card-h: 88px; } }
 @media (max-height: 720px) { :root { --card-w: 64px; --card-h: 90px; } }

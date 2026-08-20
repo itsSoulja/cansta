@@ -78,9 +78,9 @@ export function useGame() {
   }, [seat]);
 
   const createRoom = useCallback(
-    ({ mode, packCount, name }) => {
+    ({ mode, name }) => {
       setError(null);
-      socket.emit('create_room', { mode, packCount, name, playerId: playerId() }, (res) => {
+      socket.emit('create_room', { mode, name, playerId: playerId() }, (res) => {
         if (!res.ok) return setError(res.error);
         seat(res.code, name, res.playerId);
       });

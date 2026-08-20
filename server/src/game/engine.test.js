@@ -124,13 +124,13 @@ describe('computeRoundScore', () => {
   });
 });
 
-describe('engine — 1v1 game flow', () => {
+describe('engine — heads-up game flow', () => {
   let state;
   const p1 = 'p1';
   const p2 = 'p2';
 
   beforeEach(() => {
-    state = newMatch({ mode: '1v1', packCount: 2, playerIds: [p1, p2] });
+    state = newMatch({ mode: 'free', packCount: 2, playerIds: [p1, p2] });
   });
 
   it('rejects actions out of turn', () => {
@@ -371,7 +371,7 @@ describe('taking the discard pile', () => {
   const p2 = 'p2';
 
   beforeEach(() => {
-    state = newMatch({ mode: '1v1', packCount: 2, playerIds: [p1, p2] });
+    state = newMatch({ mode: 'free', packCount: 2, playerIds: [p1, p2] });
     state.initialMeldMade[teamOf(state, p1)] = true;
   });
 
@@ -627,23 +627,23 @@ describe('taking the discard pile', () => {
 });
 
 describe('free-for-all modes', () => {
-  it('gives every seat its own team in 1v1v1 and 1v1v1v1', () => {
-    const three = newMatch({ mode: '1v1v1', packCount: 2, playerIds: ['a', 'b', 'c'] });
+  it('gives every seat its own team in a free-for-all', () => {
+    const three = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c'] });
     expect(three.teams).toEqual([0, 1, 2]);
     expect(three.teamsByPlayer).toEqual({ a: 0, b: 1, c: 2 });
 
-    const four = newMatch({ mode: '1v1v1v1', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    const four = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     expect(four.teams).toEqual([0, 1, 2, 3]);
     expect(Object.keys(four.scores)).toHaveLength(4);
   });
 
-  it('still pairs seats across the table in 2v2', () => {
-    const state = newMatch({ mode: '2v2', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+  it('splits the seats alternately in team mode', () => {
+    const state = newMatch({ mode: 'teams', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     expect(state.teamsByPlayer).toEqual({ a: 0, b: 1, c: 0, d: 1 });
   });
 
   it('cycles the turn through all three seats and blocks the next player with a black 3', () => {
-    const state = newMatch({ mode: '1v1v1', packCount: 2, playerIds: ['a', 'b', 'c'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c'] });
     state.hands.a = [card('3', 'S'), card('K', 'H')];
     state.stock.push(card('9', 'C'));
     applyAction(state, { type: 'DRAW_STOCK', playerId: 'a' });
@@ -662,7 +662,7 @@ describe('animation events', () => {
   let state;
 
   beforeEach(() => {
-    state = newMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+    state = newMatch({ mode: 'free', packCount: 2, playerIds: ['p1', 'p2'] });
   });
 
   it('reports every red 3 pulled out of the opening deal', () => {
@@ -713,7 +713,7 @@ describe('animation events', () => {
 
 describe('redaction', () => {
   it('hides a drawn card from everyone but the drawer, and keeps melds public', () => {
-    const state = newMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['p1', 'p2'] });
     state.stock.push(card('K', 'C'));
     applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
 
@@ -726,7 +726,7 @@ describe('redaction', () => {
   });
 
   it("hides the card dealt to replace someone else's red 3", () => {
-    const state = newMatch({ mode: '1v1', packCount: 2, playerIds: ['p1', 'p2'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['p1', 'p2'] });
     state.events = [];
     state.stock = [card('9', 'H'), card('3', 'D')];
     applyAction(state, { type: 'DRAW_STOCK', playerId: 'p1' });
@@ -741,14 +741,14 @@ describe('seating between rounds', () => {
     const seats = ['a', 'b', 'c', 'd'];
     const starters = new Set(
       [0, 0.3, 0.6, 0.9].map(
-        (r) => createMatch({ mode: '1v1v1v1', packCount: 2, playerIds: seats, rng: () => r }).startingPlayerId,
+        (r) => createMatch({ mode: 'free', packCount: 2, playerIds: seats, rng: () => r }).startingPlayerId,
       ),
     );
     expect([...starters].sort()).toEqual(seats);
   });
 
   it('starts the round with whoever holds the deal, wherever they now sit', () => {
-    const state = newMatch({ mode: '1v1v1v1', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     state.roundOver = true;
     startNextRound(state);
     expect(state.startingPlayerId).toBe('b');
@@ -757,7 +757,7 @@ describe('seating between rounds', () => {
   });
 
   it('passes the deal to the left of the seat that just dealt', () => {
-    const state = newMatch({ mode: '1v1v1v1', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     const dealers = new Set([state.startingPlayerId]);
     for (let round = 0; round < 30; round++) {
       const seated = state.turnOrder;
@@ -775,15 +775,15 @@ describe('seating between rounds', () => {
   });
 
   it('moves everyone round the table each round', () => {
-    const state = newMatch({ mode: '1v1v1v1', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     const before = state.turnOrder.join();
     rotateSeating(state);
     expect(state.turnOrder.join()).not.toBe(before);
     expect([...state.turnOrder].sort()).toEqual(['a', 'b', 'c', 'd']);
   });
 
-  it('keeps 2v2 partners opposite each other after reseating', () => {
-    const state = newMatch({ mode: '2v2', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
+  it('keeps partners opposite each other after reseating', () => {
+    const state = newMatch({ mode: 'teams', packCount: 2, playerIds: ['a', 'b', 'c', 'd'] });
     for (let round = 0; round < 20; round++) {
       rotateSeating(state);
       const teams = state.turnOrder.map((pid) => state.teamsByPlayer[pid]);
@@ -792,7 +792,7 @@ describe('seating between rounds', () => {
   });
 
   it('deals the next round to the new dealer, in a new seating', () => {
-    const state = newMatch({ mode: '1v1v1', packCount: 2, playerIds: ['a', 'b', 'c'] });
+    const state = newMatch({ mode: 'free', packCount: 2, playerIds: ['a', 'b', 'c'] });
     state.roundOver = true;
     const res = startNextRound(state);
     expect(res.ok).toBe(true);

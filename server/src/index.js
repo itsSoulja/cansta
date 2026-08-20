@@ -13,6 +13,8 @@ import {
   detachSocket,
   startGame,
   isValidMode,
+  modeLimits,
+  startBlocker,
   playerIdOf,
   sweepAbandonedRooms,
 } from './rooms/roomManager.js';
@@ -65,12 +67,18 @@ if (fs.existsSync(CLIENT_DIST)) {
 // holding them: the socket changes on every reload, the playerId does not.
 // `connected` is what lets the table say who has stepped away from it.
 function lobbyView(room) {
+  const limits = modeLimits(room.mode);
   return {
     code: room.code,
     mode: room.mode,
     packCount: room.packCount,
+    minSeats: limits.min,
+    maxSeats: limits.max,
+    // Null when the host may deal; otherwise the sentence saying what is
+    // missing, so the lobby never has to work that out for itself.
+    startBlocker: room.gameState ? null : startBlocker(room.mode, room.seats.length),
     hostPlayerId: room.hostPlayerId,
-    seats: room.seats.map((s) => (s ? { playerId: s.playerId, name: s.name, connected: Boolean(s.socketId) } : null)),
+    seats: room.seats.map((s) => ({ playerId: s.playerId, name: s.name, connected: Boolean(s.socketId) })),
     started: Boolean(room.gameState),
   };
 }
@@ -103,11 +111,10 @@ function normalizeId(raw) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create_room', ({ mode, packCount, name, playerId } = {}, cb = () => {}) => {
+  socket.on('create_room', ({ mode, name, playerId } = {}, cb = () => {}) => {
     if (!isValidMode(mode)) return cb({ ok: false, error: 'Invalid mode' });
-    if (mode !== '1v1' && ![2, 3, 4].includes(packCount)) return cb({ ok: false, error: 'Invalid pack count' });
     const id = normalizeId(playerId);
-    const room = createRoom({ mode, packCount, playerId: id, socketId: socket.id, name: name || 'Host' });
+    const room = createRoom({ mode, playerId: id, socketId: socket.id, name: name || 'Host' });
     socket.join(room.code);
     cb({ ok: true, code: room.code, playerId: id });
     broadcastLobby(room);

@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { RulesBook } from '../components/RulesBook.jsx';
 
+// Two ways to play, and no head-count to commit to: people take seats and the
+// host deals when the table looks right.
 const MODES = [
-  { id: '1v1', label: '1v1', blurb: 'Head to head', seats: 2 },
-  { id: '1v1v1', label: '1v1v1', blurb: 'Three-way free-for-all', seats: 3 },
-  { id: '1v1v1v1', label: '1v1v1v1', blurb: 'Four-way free-for-all', seats: 4 },
-  { id: '2v2', label: '2v2', blurb: 'Partners, across the table', seats: 4 },
+  { id: 'free', label: 'Free-for-all', blurb: 'Every player for themselves', seats: '2–5 players' },
+  { id: 'teams', label: 'Teams', blurb: 'Partners, sat opposite', seats: '4 or 6 players' },
 ];
 
 export function Landing({ onCreate, onJoin, onNameChange, error }) {
   const [name, setName] = useState('');
-  const [mode, setMode] = useState('1v1');
-  const [packCount, setPackCount] = useState(2);
+  const [mode, setMode] = useState('free');
   const [joinCode, setJoinCode] = useState('');
   const [showRules, setShowRules] = useState(false);
 
@@ -45,7 +44,7 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
 
         <section className="panel">
           <h2 className="panel__title">Start a table</h2>
-          <div className="mode-grid">
+          <div className="mode-grid mode-grid--pair">
             {MODES.map((m) => (
               <button
                 key={m.id}
@@ -55,24 +54,17 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
               >
                 <span className="mode-card__label">{m.label}</span>
                 <span className="mode-card__blurb">{m.blurb}</span>
-                <span className="mode-card__seats">{m.seats} players</span>
+                <span className="mode-card__seats">{m.seats}</span>
               </button>
             ))}
           </div>
 
-          {mode !== '1v1' && (
-            <label className="field field--inline">
-              <span className="field__label">Packs of cards</span>
-              <select className="field__input" value={packCount} onChange={(e) => setPackCount(Number(e.target.value))}>
-                <option value={2}>2 — standard</option>
-                <option value={3}>3 — longer round</option>
-                <option value={4}>4 — marathon</option>
-              </select>
-            </label>
-          )}
+          <p className="panel__hint">
+            Nobody has to say how many are playing. Open the table, share the code, and deal when everyone is sat down.
+          </p>
 
-          <button className="btn btn--primary btn--wide" disabled={!named} onClick={() => onCreate({ mode, packCount, name: name.trim() })}>
-            Deal me in
+          <button className="btn btn--primary btn--wide" disabled={!named} onClick={() => onCreate({ mode, name: name.trim() })}>
+            Open a table
           </button>
         </section>
 

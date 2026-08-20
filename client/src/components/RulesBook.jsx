@@ -37,6 +37,19 @@ export function RulesBook({ onClose }) {
             <strong> 5000 points</strong> takes the match.
           </p>
 
+          <Section title="Who is playing">
+            <p>
+              Two ways to play, and no head-count to settle first. A{' '}
+              <strong>free-for-all</strong> seats <strong>two to five</strong>, everyone for themselves.{' '}
+              <strong>Teams</strong> takes <strong>four or six</strong> and splits the table alternately into two
+              sides, so your partners always sit away from you.
+            </p>
+            <p className="rules-book__note">
+              Open a table, share the code, and deal whenever everyone is sat down. How many packs of cards are in play
+              follows from the turnout — two up to four players, three beyond that.
+            </p>
+          </Section>
+
           <Section title="A turn, start to finish">
             <ol className="rules-book__steps">
               <li>
@@ -162,7 +175,7 @@ export function RulesBook({ onClose }) {
               <li>Black threes block the next player only. There is no frozen pile.</li>
               <li>Taking the pile can be your opening play, if what you lay down clears the threshold.</li>
               <li>Your first pickup of the round costs a natural pair; after your side has melded, one and a wild does it.</li>
-              <li>In 2v2 you do not need your partner's permission to go out.</li>
+              <li>In team mode you do not need your partners' permission to go out.</li>
             </ul>
           </Section>
 

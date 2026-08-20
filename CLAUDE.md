@@ -58,13 +58,15 @@ One `state` object per room holds the whole match across rounds. Load-bearing de
 - `initialMeldMade[team]` gates melding and pile pickup, sets the sign of the red 3 bonus at scoring time, and its threshold scales with cumulative score (15 below zero, then 50/90/120).
 - A meld must be built on naturals: wilds strictly fewer than naturals, and at most three wilds however long the meld grows (`MAX_WILDS` in `game/meld.js`).
 - A turn ends with a card still in hand unless it is the turn that ends the round (`goingOutBlocked` in `game/engine.js`). A lay-down may leave one card — the discard then takes it as you go out — or none at all, but only when the side has a canasta. Without one, stopping at a single card would strand a player who can neither discard nor meld, with the turn unable to end. Taking the pile is separate: it needs more than 2 cards in hand, since it costs you cards before the buried ones arrive.
-- `turnOrder` is the seating and `playerIds` the roster: the roster fixes team membership for the match, while the seating is reshuffled every round by `rotateSeating` (2v2 interleaves the two shuffled pairs so partners stay opposite). The client renders the ring from `turnOrder`, so both are in the redacted payload.
+- `turnOrder` is the seating and `playerIds` the roster: the roster fixes team membership for the match, while the seating is reshuffled every round by `rotateSeating` (team mode interleaves the two shuffled sides so partners stay opposite). The client renders the ring from `turnOrder`, so both are in the redacted payload.
 - `startingPlayerId` holds the deal. It is drawn at random when the match is created — the host has no head start — and each round passes to the player on the previous dealer's left, read off the seating that round was played in, before the reshuffle. Since the seating moves too, the deal takes a random walk rather than a fixed cycle; it just never lands twice running.
 - Match ends at 5000 points.
 
 ### Modes
 
-Four modes: `1v1`, `1v1v1`, `1v1v1v1`, `2v2`. Only 2v2 pairs seats (`idx % 2`); every other mode gives each seat its own team, so the per-team scoring, opening threshold, and go-out rules carry over untouched. Seat counts live in `SEATS_BY_MODE` in `roomManager.js` — the one place to change when adding a mode. Heads-up is fixed at 2 packs; every larger table lets the host pick 2–4.
+Two modes: `free` (2–5 players, every seat its own team) and `teams` (4 or 6, seats split `idx % 2` so partners sit opposite — a six-hander is 3v3). A free-for-all's per-seat teams mean the scoring, opening threshold, and go-out rules carry over untouched.
+
+**No seat count is chosen up front.** `room.seats` is a plain growing list in arrival order; `MODES` in `roomManager.js` holds the min/max per mode and `startBlocker(mode, count)` returns the sentence saying why the host cannot deal yet (or `null`). The lobby renders that sentence rather than working it out — add a mode by adding a `MODES` entry. Pack count is likewise derived at deal time by `packsFor(count)` (2 up to four players, 3 beyond), since 14 cards each is what drains the stock.
 
 ### Animation events
 

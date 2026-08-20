@@ -13,25 +13,30 @@ other. Where Cansta departs from standard Canasta, it is called out under
 
 ## 1. The shape of a game
 
-| Mode | Seats | Teams |
+| Mode | Players | Teams |
 | --- | --- | --- |
-| `1v1` | 2 | one seat each |
-| `1v1v1` | 3 | one seat each |
-| `1v1v1v1` | 4 | one seat each |
-| `2v2` | 4 | seats paired by `idx % 2`, so partners sit opposite |
+| `free` | 2–5 | one seat each |
+| `teams` | 4 or 6 | seats split by `idx % 2`, so partners sit opposite |
 
-Only `2v2` pairs anyone up. Every other mode gives each seat its own team, which
-means the scoring, opening threshold and go-out rules below apply per player
-without changing a word.
+Nobody names a number when the room is made. People arrive, the lobby seats them
+round the table, and the host deals once the turnout is legal — at least two for
+a free-for-all, an even four or six for teams.
 
-**Packs.** Each pack is 52 cards plus 2 jokers. Heads-up is fixed at 2 packs;
-every larger table lets the host pick 2, 3 or 4.
+A free-for-all gives each seat its own team, which means the scoring, opening
+threshold and go-out rules below apply per player without changing a word. Team
+mode cuts the arrival order alternately into two sides, however many are sat
+down, so a six-hander is 3v3 with partners spaced evenly round the table.
+
+**Packs.** Each pack is 52 cards plus 2 jokers, and how many are in play is read
+off the turnout rather than asked for: **2 packs up to four players, 3 beyond
+that**. Everyone is dealt 14 cards, so it is the stock that decides.
 
 **Match end.** The first side to reach **5000** points wins. The check runs after
 each round is scored.
 
-*Seat counts: `SEATS_BY_MODE` in `rooms/roomManager.js`. Teams: `assignTeams` in
-`game/state.js`. Match target: `finalizeRound` in `game/engine.js`.*
+*Table sizes and packs: `MODES`, `packsFor` and `startBlocker` in
+`rooms/roomManager.js`. Teams: `assignTeams` in `game/state.js`. Match target:
+`finalizeRound` in `game/engine.js`.*
 
 ---
 
@@ -42,7 +47,7 @@ each round is scored.
   buys no head start. Each round after that, the deal passes to the player on
   the previous dealer's **left**, read off the seating that round was played in.
 - **Everyone changes seats between rounds.** A free-for-all is shuffled outright;
-  in `2v2` the two pairs are shuffled separately and interleaved, so partners
+  in team mode the two sides are shuffled separately and interleaved, so partners
   stay opposite. Because the seating moves as well, the deal takes a random walk
   around the table rather than a fixed cycle — it just never lands twice running.
 - **Red 3s dealt into a hand** are moved to that side's red-3 pile straight away
@@ -284,8 +289,8 @@ check before "fixing" one.
 5. **Canasta bonuses count toward the opening threshold.** An opening lay-down
    that is itself a canasta clears 50 on the bonus alone. Standard Canasta counts
    card points only.
-6. **No partner permission.** In `2v2` you may go out without asking your
-   partner.
+6. **No partner permission.** In team mode you may go out without asking your
+   partners.
 7. **Hand size is 14 regardless of pack count**, and there is no separate
    requirement tying canastas to the number of packs.
 8. **The pile costs a natural pair before you have opened.** Standard Canasta
@@ -310,7 +315,7 @@ check before "fixing" one.
 | `game/state.js` | Dealing, seating, turn order, who holds the deal |
 | `game/engine.js` | **The turn rules** — every action, the pile checks, going out, round end |
 | `game/engine.test.js` | The executable statement of most of the above |
-| `rooms/roomManager.js` | Seat counts per mode, pack-count policy, **who holds a seat** across a lost connection |
+| `rooms/roomManager.js` | **Table sizes and pack policy**, and **who holds a seat** across a lost connection |
 | `rooms/rooms.test.js` | The executable statement of the seat rules |
 | `rooms/redact.js` | Per-viewer redaction, and the pile hints it derives *from the engine* |
 

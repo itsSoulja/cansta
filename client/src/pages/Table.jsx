@@ -11,11 +11,14 @@ import { FlightLayer } from '../anim/FlightLayer.jsx';
 import { useCardFlights } from '../anim/useCardFlights.js';
 
 // Where each opponent sits, by how many of them there are. You are always at
-// the bottom, so the others spread evenly across the rest of the table.
+// the bottom, so the others spread evenly across the rest of the table — going
+// round to the left, the way the turn travels.
 const SEAT_POSITIONS = {
   1: ['top'],
   2: ['upper-left', 'upper-right'],
   3: ['left', 'top', 'right'],
+  4: ['left', 'upper-left', 'upper-right', 'right'],
+  5: ['left', 'upper-left', 'top', 'upper-right', 'right'],
 };
 
 export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
@@ -72,7 +75,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
     return order.slice(mine + 1).concat(order.slice(0, mine));
   }, [game.turnOrder, myId]);
 
-  // In 2v2 a team shares one meld area: yours sits in front of you, theirs in
+  // In team mode a side shares one meld area: yours sits in front of you, theirs in
   // front of the first opponent on that team.
   const meldSeatByTeam = useMemo(() => {
     const map = {};
@@ -172,7 +175,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const positions = SEAT_POSITIONS[opponents.length] ?? [];
 
   return (
-    <div className="table-stage">
+    <div className={`table-stage${opponents.length >= 4 ? ' table-stage--crowded' : ''}`}>
       <div className="table-glow" />
       <div className="table-rays" />
 
@@ -196,7 +199,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
           </div>
         )}
 
-        <ScorePanel game={game} nameFor={nameFor} />
+        <ScorePanel game={game} nameFor={nameFor} compact={game.teams.length > 3} />
       </header>
 
       {opponents.map((pid, i) => {

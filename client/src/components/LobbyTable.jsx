@@ -1,3 +1,5 @@
+import { ringSpot } from './ring.js';
+
 // The lobby's table. Everyone who has joined is sat around it, you at the
 // bottom, and the ring closes up as people arrive — so the room fills in front
 // of you instead of ticking down a list of empty slots.
@@ -5,9 +7,9 @@
 // In team mode the sides alternate by arrival order, which is exactly how the
 // server will pair them, so the colours here are the real thing rather than a
 // guess.
-const RADIUS_X = 42;
-const RADIUS_Y = 38;
-
+//
+// It is the same felt and the same ring the game is played on, so dealing the
+// cards does not move anybody: the table simply fills up.
 export function LobbyTable({ seats, myPlayerId, hostPlayerId, mode, waitingFor }) {
   // Rotate the ring so you are always the one at the bottom.
   const mine = seats.findIndex((s) => s.playerId === myPlayerId);
@@ -23,17 +25,13 @@ export function LobbyTable({ seats, myPlayerId, hostPlayerId, mode, waitingFor }
       </div>
 
       {around.map((seat, i) => {
-        // Bottom of the ring is 90°, and the rest spread evenly from there.
-        const angle = ((90 + (i * 360) / around.length) * Math.PI) / 180;
-        const left = 50 + RADIUS_X * Math.cos(angle);
-        const top = 50 + RADIUS_Y * Math.sin(angle);
         // Teams are cut from the arrival order, not the order you are seeing.
         const team = mode === 'teams' ? seats.indexOf(seat) % 2 : null;
         return (
           <div
             className={`lobby-seat${seat.playerId === myPlayerId ? ' is-you' : ''}${team !== null ? ` lobby-seat--team${team}` : ''}`}
             key={seat.playerId}
-            style={{ left: `${left}%`, top: `${top}%` }}
+            style={ringSpot(i, around.length)}
           >
             <span className="lobby-seat__avatar">{seat.name.slice(0, 1).toUpperCase()}</span>
             <span className="lobby-seat__name">{seat.name}</span>

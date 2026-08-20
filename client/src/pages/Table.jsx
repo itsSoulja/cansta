@@ -4,22 +4,12 @@ import { CenterPiles } from '../components/CenterPiles.jsx';
 import { HandFan } from '../components/HandFan.jsx';
 import { MeldArea, RedThreeZone } from '../components/MeldArea.jsx';
 import { RoomCode } from '../components/RoomCode.jsx';
+import { ringSpot } from '../components/ring.js';
 import { ScorePanel } from '../components/ScorePanel.jsx';
 import { Seat } from '../components/Seat.jsx';
 import { StagingTray, buildGroups } from '../components/StagingTray.jsx';
 import { FlightLayer } from '../anim/FlightLayer.jsx';
 import { useCardFlights } from '../anim/useCardFlights.js';
-
-// Where each opponent sits, by how many of them there are. You are always at
-// the bottom, so the others spread evenly across the rest of the table — going
-// round to the left, the way the turn travels.
-const SEAT_POSITIONS = {
-  1: ['top'],
-  2: ['upper-left', 'upper-right'],
-  3: ['left', 'top', 'right'],
-  4: ['left', 'upper-left', 'upper-right', 'right'],
-  5: ['left', 'upper-left', 'top', 'upper-right', 'right'],
-};
 
 export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const [selected, setSelected] = useState([]);
@@ -172,12 +162,14 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
     );
   }
 
-  const positions = SEAT_POSITIONS[opponents.length] ?? [];
+  // You sit at the bottom of the ring and are drawn below the felt rather than
+  // on it, so the opponents take the remaining places round the same oval the
+  // lobby seated everyone at.
+  const ringSeats = opponents.length + 1;
 
   return (
     <div className={`table-stage${opponents.length >= 4 ? ' table-stage--crowded' : ''}`}>
       <div className="table-glow" />
-      <div className="table-rays" />
 
       <header className="table-top">
         <div className="table-top__left">
@@ -202,52 +194,59 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
         <ScorePanel game={game} nameFor={nameFor} compact={game.teams.length > 3} />
       </header>
 
-      {opponents.map((pid, i) => {
-        const team = game.teamsByPlayer[pid];
-        const partner = team === game.yourTeam;
-        return (
-          <Seat
-            key={pid}
-            position={positions[i]}
-            name={{ playerId: pid, label: nameFor(pid) }}
-            count={game.hands[pid]?.count ?? 0}
-            active={game.currentPlayerId === pid}
-            away={isAway(pid)}
-            team={team}
-            melds={game.melds}
-            redThrees={game.redThrees}
-            hiddenIds={hiddenIds}
-            showMelds={meldSeatByTeam[team] === pid}
-            teamLabel={partner ? 'partner' : null}
-          />
-        );
-      })}
+      {/* The felt itself, with the piles on it and everyone sat around the
+          rim — the lobby's table, now being played on. */}
+      <div className="felt-ring">
+        <div className="felt-oval" />
 
-      <CenterPiles
-        game={game}
-        canDraw={inDraw}
-        yourTurn={isYourTurn}
-        canTakePile={canTakePile}
-        canDiscardHere={canDiscardHere}
-        onDrawStock={drawStock}
-        onPileClick={onPileClick}
-        hiddenIds={hiddenIds}
-        selectedCount={selected.length}
-      />
+        <CenterPiles
+          game={game}
+          canDraw={inDraw}
+          yourTurn={isYourTurn}
+          canTakePile={canTakePile}
+          canDiscardHere={canDiscardHere}
+          onDrawStock={drawStock}
+          onPileClick={onPileClick}
+          hiddenIds={hiddenIds}
+          selectedCount={selected.length}
+        />
 
-      <div className={`you-zone${isYourTurn ? ' you-zone--active' : ''}`}>
-        <div className="you-zone__table">
+        <div className="ring-melds ring-melds--yours" style={ringSpot(0, ringSeats, 0.58)}>
           <MeldArea
             melds={game.melds}
             team={game.yourTeam}
             hiddenIds={hiddenIds}
             addable={isYourTurn && selected.length > 0}
             onAddTo={addToMeld}
-            emptyLabel={opened ? 'no melds yet' : 'your melds will lay down here'}
+            emptyLabel={opened ? 'no melds yet' : 'your melds lay down here'}
           />
           <RedThreeZone team={game.yourTeam} cards={game.redThrees[game.yourTeam] ?? []} hiddenIds={hiddenIds} />
         </div>
 
+        {opponents.map((pid, i) => {
+          const team = game.teamsByPlayer[pid];
+          const partner = team === game.yourTeam;
+          return (
+            <Seat
+              key={pid}
+              index={i + 1}
+              count={ringSeats}
+              name={{ playerId: pid, label: nameFor(pid) }}
+              cards={game.hands[pid]?.count ?? 0}
+              active={game.currentPlayerId === pid}
+              away={isAway(pid)}
+              team={team}
+              melds={game.melds}
+              redThrees={game.redThrees}
+              hiddenIds={hiddenIds}
+              showMelds={meldSeatByTeam[team] === pid}
+              teamLabel={partner ? 'partner' : null}
+            />
+          );
+        })}
+      </div>
+
+      <div className={`you-zone${isYourTurn ? ' you-zone--active' : ''}`}>
         <StagingTray
           groups={groups}
           total={stagedTotal}

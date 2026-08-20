@@ -102,6 +102,8 @@ Render serves those images, so the folder has to be committed — the client hal
 
 `useGame.js` is the single socket boundary — one hook holding `connected/myId/lobby/game/error` plus the emit wrappers. `App.jsx` routes on state alone: `game` → `Table`, else `lobby` → `Lobby`, else `Landing`.
 
+The lobby and the game are the **same table**: `components/ring.js` gives both the seat positions round one oval, with the viewer always at the bottom, so dealing the cards moves nobody. `LobbyTable.jsx` draws the ring on its own; in `Table.jsx` the ring holds the piles in the middle of the felt, each player's hand outside the rim (`radius > 1`), their nameplate on it, and their melds inside (`radius < 1`). The page background is the same on both, so nothing behind the table changes when the game starts.
+
 `Table.jsx` holds all interaction state (`selected`, `stagedGroups`, `targetRank`). The opening meld needs multiple groups at once to clear the threshold, hence the stage-a-group flow; ordinary melds send a flat `cardIds` + optional `targetRank`.
 
 Styling is class-based in `client/src/index.css` (felt table, fanned hand, card faces). `MeldArea.jsx` and `ScorePanel.jsx` still use inline styles and haven't been migrated.

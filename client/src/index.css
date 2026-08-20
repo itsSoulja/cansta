@@ -136,37 +136,7 @@ body.has-egg .portal {
   background-position: center;
   background-repeat: no-repeat;
 }
-body.has-egg .table-rays { display: none; }
-body.has-egg .table-glow { opacity: 0.4; }
-
-/* ── Table shell ─────────────────────────────────────────────────────── */
-.table-stage {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse 62% 52% at 50% 46%, var(--felt-core) 0%, var(--felt-mid) 46%, var(--felt-edge) 100%);
-}
-.table-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle 34% at 50% 46%, hsl(var(--felt-hue) 55% 45% / 0.35), transparent 70%);
-  pointer-events: none;
-}
-.table-rays {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: 150vmax;
-  height: 150vmax;
-  translate: -50% -50%;
-  background: repeating-conic-gradient(from 0deg, hsl(var(--felt-hue) 60% 60% / 0.055) 0deg 14deg, transparent 14deg 30deg);
-  animation: rays 90s linear infinite;
-  pointer-events: none;
-}
-@keyframes rays { to { rotate: 360deg; } }
-
+body.has-egg 
 .table-top {
   position: absolute;
   inset: 0 0 auto 0;
@@ -211,48 +181,54 @@ body.has-egg .table-glow { opacity: 0.4; }
 .tag--against { background: hsl(0 0% 100% / 0.09); color: hsl(28 90% 72%); }
 
 /* ── Opponent seats ──────────────────────────────────────────────────── */
-.seat { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; z-index: 12; }
-.seat--top { top: 3.4rem; left: 50%; translate: -50% 0; }
-.seat--upper-left { top: 4.2rem; left: 4%; }
-.seat--upper-right { top: 4.2rem; right: 4%; }
-.seat--left { top: 44%; left: 1.5%; translate: 0 -50%; }
-.seat--right { top: 44%; right: 1.5%; translate: 0 -50%; }
+/* ── The felt, and everyone round it ─────────────────────────────────────
+   The same oval the lobby seats people at, now with the cards on it: the
+   piles in the middle, each player's hand outside the rim, their nameplate
+   on it and their melds inside. Nothing moves when the game starts.     */
+.felt-ring {
+  position: absolute;
+  top: 3.3rem;
+  bottom: 10.5rem;
+  left: 50%;
+  translate: -50% 0;
+  width: min(88vw, 70rem);
+}
+.felt-oval {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, hsl(var(--felt-hue) 42% 30%), hsl(var(--felt-hue) 50% 16%));
+  border: 2px solid hsl(var(--felt-hue) 30% 45% / 0.5);
+  box-shadow: inset 0 0 90px hsl(var(--felt-hue) 60% 6% / 0.7), 0 22px 50px hsl(var(--felt-hue) 60% 5% / 0.5);
+}
 
-/* Five or six at the table is a lot of fan to fit. The whole seat shrinks and
-   the ring opens out, so the flanks stop running into the corners above them. */
-.table-stage--crowded .seat { scale: 0.76; }
-.table-stage--crowded .seat--upper-left { top: 3rem; left: 15%; }
-.table-stage--crowded .seat--upper-right { top: 3rem; right: 15%; }
-.table-stage--crowded .seat--left { top: 50%; left: 0; }
-.table-stage--crowded .seat--right { top: 50%; right: 0; }
-
-.seat__plate {
+.ring-seat {
+  position: absolute;
+  translate: -50% -50%;
+  z-index: 16;
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.28rem 0.7rem 0.28rem 0.28rem;
+  padding: 0.25rem 0.6rem 0.25rem 0.25rem;
   border-radius: 999px;
   background: var(--plate);
   border: 1px solid hsl(var(--felt-hue) 25% 55% / 0.28);
-  transition: box-shadow 0.3s, border-color 0.3s;
+  transition: box-shadow 0.3s, border-color 0.3s, opacity 0.3s;
 }
-.seat--active .seat__plate {
-  border-color: var(--glow);
-  box-shadow: 0 0 0 1px var(--glow-soft), 0 0 26px var(--glow-soft);
-}
-.seat__avatar {
-  width: 1.85rem;
-  height: 1.85rem;
+.ring-seat.is-active { border-color: var(--glow); box-shadow: 0 0 0 1px var(--glow-soft), 0 0 26px var(--glow-soft); }
+.ring-seat.is-away { opacity: 0.55; }
+.ring-seat__avatar {
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-weight: 800;
-  background: linear-gradient(160deg, hsl(var(--felt-hue) 30% 42%), hsl(var(--felt-hue) 35% 26%));
+  background: linear-gradient(160deg, hsl(var(--felt-hue) 30% 46%), hsl(var(--felt-hue) 38% 26%));
   border: 1px solid hsl(0 0% 100% / 0.25);
 }
-.seat__name { font-size: 0.82rem; font-weight: 600; display: flex; align-items: baseline; gap: 0.35rem; }
-.seat__team { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--glow); }
-.seat__count {
+.ring-seat__name { font-size: 0.82rem; font-weight: 600; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ring-seat__count {
   min-width: 1.5rem;
   text-align: center;
   font-weight: 800;
@@ -261,16 +237,45 @@ body.has-egg .table-glow { opacity: 0.4; }
   border-radius: 6px;
   background: hsl(0 0% 100% / 0.12);
 }
+.ring-seat__tags { display: flex; gap: 0.25rem; }
+.ring-seat__tags em {
+  font-style: normal;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ring-seat__tags .is-partner { color: var(--glow); }
+.ring-seat__tags .is-away { color: hsl(30 85% 70%); }
 
-.seat__hand { display: flex; justify-content: center; align-items: flex-start; height: calc(var(--card-h) * 0.68); }
-.seat__card {
-  margin: 0 calc(var(--card-w) * -0.19);
+/* Hands sit outside the rim, so the felt itself stays clear for the play. */
+.ring-fan {
+  position: absolute;
+  translate: -50% -50%;
+  z-index: 12;
+  display: flex;
+  justify-content: center;
+  scale: 0.5;
+}
+.ring-fan__card {
+  margin: 0 calc(var(--card-w) * -0.2);
   transform: rotate(var(--rot)) translateY(var(--lift));
   transform-origin: 50% 120%;
 }
-.seat--left .seat__hand, .seat--right .seat__hand { scale: 0.85; }
+.table-stage--crowded .ring-fan { scale: 0.42; }
 
-.seat__melds { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; max-width: 30vw; }
+/* Melds are laid inside the rim, in front of whoever laid them. */
+.ring-melds {
+  position: absolute;
+  translate: -50% -50%;
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 22%;
+}
+/* Yours is the one you play with, so it gets the room the others do not. */
+.ring-melds--yours { width: 46%; }
 
 /* ── Melds ───────────────────────────────────────────────────────────── */
 .meld-area { display: flex; flex-wrap: wrap; gap: 0.55rem; justify-content: center; align-items: flex-start; }
@@ -318,7 +323,7 @@ body.has-egg .table-glow { opacity: 0.4; }
 /* ── Centre piles ────────────────────────────────────────────────────── */
 .center-piles {
   position: absolute;
-  top: 45%;
+  top: 50%;
   left: 50%;
   translate: -50% -50%;
   display: flex;
@@ -393,14 +398,6 @@ body.has-egg .table-glow { opacity: 0.4; }
   padding-bottom: 0.4rem;
   z-index: 20;
 }
-.you-zone__table {
-  display: flex;
-  align-items: flex-end;
-  gap: 1rem;
-  min-height: calc(var(--card-h) * 0.7);
-  padding: 0 1rem;
-}
-
 .tray {
   display: flex;
   align-items: center;
@@ -605,7 +602,7 @@ body.has-egg .table-glow { opacity: 0.4; }
 }
 .lobby-table__felt {
   position: absolute;
-  inset: 16% 12%;
+  inset: 12%;
   border-radius: 50%;
   display: grid;
   place-content: center;
@@ -935,14 +932,6 @@ body.has-egg .table-glow { opacity: 0.4; }
   max-width: min(46vw, 34rem);
 }
 .away-strip__code { color: hsl(30 95% 92%); font-weight: 700; letter-spacing: 0.05em; }
-
-.seat--away { opacity: 0.55; }
-.seat__away {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: hsl(30 85% 70%);
-}
 
 .summary-card__code {
   color: var(--text-dim);

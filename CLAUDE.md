@@ -36,11 +36,17 @@ The socket protocol is deliberately tiny (`server/src/index.js`):
 
 Every mutation funnels through `applyAction(state, action)` in `game/engine.js`, a switch over `DRAW_STOCK | TAKE_DISCARD | OPEN_MELD | MELD | DISCARD`. The handlers are pure-ish: they mutate `state` in place and return `{ ok, error? , roundEnded? }`. `index.js` re-broadcasts only when `ok`.
 
-### Player identity is `socket.id`
+### Player identity is the seat's `playerId`, not the socket
 
-Seats, `state.playerIds`, `teamsByPlayer`, `hands`, and turn order are all keyed by socket id. **There is no reconnect path** — a refresh or dropped connection frees the seat (`leaveRoom`) and orphans that player's hand while the match keeps referencing the dead id. Any work on resilience starts by introducing a stable player id separate from the socket id.
+Seats, `state.playerIds`, `teamsByPlayer`, `hands`, and turn order are keyed by a **stable `playerId`**. A seat is `{ playerId, socketId, name }`: the `playerId` is the seat's identity for the whole match, the `socketId` merely whichever connection is holding it right now. `playerIdOf(room, socket.id)` is how `index.js` turns an incoming socket into the player the engine knows.
 
-Rooms live in module-level `Map`s in `rooms/roomManager.js` — in-memory only, so a server restart drops all games.
+The client mints its id in `client/src/session.js` and keeps it in **sessionStorage** — per-tab (so two tabs are two players, which is how the game gets tested) but surviving a reload, which is the point. It also remembers `{ code, name }` there, and `useGame` re-emits `join_room` on every socket `connect`, so a reload walks straight back into its seat.
+
+`join_room` is the one door for all three cases: a first arrival, a reload claiming its own `playerId`, and a stranger typing the code at a table already under way. In the last case they take over an **abandoned chair** — a seat whose socket is gone — and inherit its `playerId`, since that is what the game state knows the hand by. The ack returns the seat's `playerId` for the client to adopt. A started table with every seat still held has no room for anyone.
+
+Losing a connection is not leaving: `detachSocket` frees the seat outright before the game starts, but once cards are out it only clears `socketId` and leaves the hand sitting there. Nobody can act for an absent player, so the table just waits (`lobby.seats[].connected` drives the "away" markers and the strip across the top of `Table.jsx`). The host is not reassigned mid-match, but `next_round` falls through to any seated player while the host is away.
+
+Rooms live in module-level `Map`s in `rooms/roomManager.js` — in-memory only, so a server restart still drops all games. A room with nobody connected is stamped with `abandonedSince` and swept after 30 minutes by the interval in `index.js`.
 
 ### State shape (`game/state.js`)
 
@@ -77,6 +83,7 @@ If you add a derived hint for the UI, compute it in `redact.js` from a shared en
 These are choices, not bugs — check with the user before "fixing" them:
 
 - Taking the discard pile is refused when your side already melds the top card's rank — a house rule, not standard Canasta, where adding the top card to an existing meld is the commonest pickup. It means the top card always *starts* a meld and never joins one, so `TAKE_DISCARD` never has to fold into a stored shape.
+- Before a side has opened, the pile must be met with a **natural pair** — two cards of the top card's rank from hand. One natural and a wild is refused. Once the side has melds down, one and a wild is enough. `pileNeedsNaturalPair` in `engine.js` says which case a side is in; `redact.js` passes it to the client, which only uses it to warn while cards are staged.
 - Taking the pile may be a side's opening play. Only what is laid down counts toward the threshold — the top card included, the buried cards not. `TAKE_DISCARD` therefore accepts `groups` like `OPEN_MELD` does, with a flat `cardIds` list as the single-meld shorthand.
 - Only the top discard card is melded on pickup; the rest goes to hand.
 - Black 3s only block the next player's pickup (`discardBlockedFor`); there is no full freeze mechanic.

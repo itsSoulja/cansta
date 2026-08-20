@@ -1,5 +1,5 @@
 export function Lobby({ lobby, myId, onStart, onLeave, error }) {
-  const isHost = lobby.hostSocketId === myId;
+  const isHost = lobby.hostPlayerId === myId;
   const full = lobby.seats.every((s) => s !== null);
   const taken = lobby.seats.filter(Boolean).length;
 
@@ -37,8 +37,8 @@ export function Lobby({ lobby, myId, onStart, onLeave, error }) {
                 <span className="seat-list__avatar">{seat ? seat.name.slice(0, 1).toUpperCase() : '·'}</span>
                 <span className="seat-list__name">
                   {seat ? seat.name : 'waiting…'}
-                  {seat?.socketId === myId && <span className="seat-list__you">you</span>}
-                  {seat?.socketId === lobby.hostSocketId && <span className="seat-list__host">host</span>}
+                  {seat?.playerId === myId && <span className="seat-list__you">you</span>}
+                  {seat?.playerId === lobby.hostPlayerId && <span className="seat-list__host">host</span>}
                 </span>
               </li>
             ))}

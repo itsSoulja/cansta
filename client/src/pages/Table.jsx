@@ -3,6 +3,7 @@ import { CardGuideHold } from '../components/CardGuide.jsx';
 import { CenterPiles } from '../components/CenterPiles.jsx';
 import { HandFan } from '../components/HandFan.jsx';
 import { MeldArea, RedThreeZone } from '../components/MeldArea.jsx';
+import { RoomCode } from '../components/RoomCode.jsx';
 import { ScorePanel } from '../components/ScorePanel.jsx';
 import { Seat } from '../components/Seat.jsx';
 import { StagingTray, buildGroups } from '../components/StagingTray.jsx';
@@ -21,7 +22,15 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   const [selected, setSelected] = useState([]);
   const [wildAssignments, setWildAssignments] = useState({});
 
-  const nameFor = (playerId) => lobby?.seats.find((s) => s && s.socketId === playerId)?.name ?? 'Player';
+  const seatFor = (playerId) => lobby?.seats.find((s) => s && s.playerId === playerId) ?? null;
+  const nameFor = (playerId) => seatFor(playerId)?.name ?? 'Player';
+  // A seat whose player has closed the tab or lost the network keeps its hand
+  // and waits. Nobody else can act for them, so the table has to say so.
+  const isAway = (playerId) => seatFor(playerId)?.connected === false;
+  const awayNames = (lobby?.seats ?? [])
+    .filter((s) => s && !s.connected && game.playerIds.includes(s.playerId))
+    .map((s) => s.name);
+  const hostAway = lobby ? isAway(lobby.hostPlayerId) : false;
 
   const { flights, hiddenIds, legMs } = useCardFlights({ events: game.events, myId });
 
@@ -50,6 +59,10 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
     [selectedCards, wildAssignments, game.pointValues, pileCard],
   );
   const stagedTotal = groups.reduce((sum, g) => sum + g.points, 0);
+  // Before a side opens, the top card has to be met by a natural pair out of
+  // hand. The engine says whether that applies; the tray is only reporting it.
+  const pileGroup = groups.find((g) => g.fromPile);
+  const needsNaturalPair = Boolean(canTakePile && game.pileNeedsNaturalPair && pileGroup && pileGroup.cards.length < 2);
 
   // Seat the opponents in turn order starting from the player after you, so the
   // turn visibly travels around the table.
@@ -122,7 +135,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
   };
 
   if (game.matchOver || game.roundOver) {
-    const isHost = lobby?.hostSocketId === myId;
+    const isHost = lobby?.hostPlayerId === myId;
     const summary = game.lastRoundSummary;
     const won = game.winner === game.yourTeam;
     return (
@@ -142,13 +155,15 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             ))}
           <ScorePanel game={game} nameFor={nameFor} />
           {!game.matchOver &&
-            (isHost ? (
+            (isHost || hostAway ? (
               <button className="btn btn--primary" onClick={nextRound}>
                 Deal the next round
+                {!isHost && hostAway ? ' (the host has left)' : ''}
               </button>
             ) : (
               <p className="summary-card__wait">Waiting for the host to deal…</p>
             ))}
+          {lobby && <p className="summary-card__code">table code {lobby.code}</p>}
         </div>
       </div>
     );
@@ -162,10 +177,25 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
       <div className="table-rays" />
 
       <header className="table-top">
-        <span className="table-top__brand">
-          Cansta <span className="table-top__round">Round {game.round}</span>
-          <CardGuideHold game={game} />
-        </span>
+        <div className="table-top__left">
+          <span className="table-top__brand">
+            Cansta <span className="table-top__round">Round {game.round}</span>
+            <CardGuideHold game={game} />
+          </span>
+          <RoomCode code={lobby?.code} />
+        </div>
+
+        {/* A seat is never given away mid-hand: it holds its cards until its
+            player reloads back into it, or somebody types the code and takes
+            the chair over. Either way the table waits, so it says who for. */}
+        {awayNames.length > 0 && (
+          <div className="away-strip">
+            <strong>{awayNames.join(' and ')}</strong>
+            {awayNames.length > 1 ? ' have' : ' has'} left the table — the hand is being held.
+            {lobby && <span className="away-strip__code"> Rejoin with code {lobby.code}</span>}
+          </div>
+        )}
+
         <ScorePanel game={game} nameFor={nameFor} />
       </header>
 
@@ -179,6 +209,7 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
             name={{ playerId: pid, label: nameFor(pid) }}
             count={game.hands[pid]?.count ?? 0}
             active={game.currentPlayerId === pid}
+            away={isAway(pid)}
             team={team}
             melds={game.melds}
             redThrees={game.redThrees}
@@ -233,6 +264,8 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
               ) : (
                 'Your turn — meld or discard'
               )
+            ) : isAway(game.currentPlayerId) ? (
+              `Waiting for ${nameFor(game.currentPlayerId)} to come back…`
             ) : (
               `${nameFor(game.currentPlayerId)} is playing…`
             )}
@@ -255,6 +288,11 @@ export function Table({ game, lobby, myId, sendAction, nextRound, error }) {
           )}
           {inAction && wouldStripHand && (
             <span className="action-bar__note">that leaves too few cards to finish the turn — going out needs a canasta</span>
+          )}
+          {inDraw && needsNaturalPair && (
+            <span className="action-bar__note">
+              your side has nothing down yet — the pile costs two {game.topDiscard?.rank}s from your hand, not one and a wild
+            </span>
           )}
           {inDraw && selected.length > 0 && (
             <span className="action-bar__note">draw or take the pile first — then a meld will take these</span>

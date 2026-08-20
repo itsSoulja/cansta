@@ -1,5 +1,5 @@
 import { currentPlayerId, teamOf, teamHasCanasta } from '../game/state.js';
-import { discardTakeBlocker } from '../game/engine.js';
+import { discardTakeBlocker, pileNeedsNaturalPair } from '../game/engine.js';
 import { initialMeldThreshold } from '../game/scoring.js';
 import { POINT_VALUES } from '../game/card.js';
 
@@ -34,6 +34,9 @@ export function redactStateFor(state, viewerId) {
     events: (state.events ?? []).map((e) => redactEvent(e, viewerId)),
     canTakeDiscard: pileBlockedReason === null,
     takeDiscardReason: pileBlockedReason,
+    // Before a side has opened, the pile has to be met with a natural pair.
+    // The engine decides it; the tray only says so while you are staging.
+    pileNeedsNaturalPair: pileNeedsNaturalPair(state, viewerTeam),
     yourTeamHasCanasta: teamHasCanasta(state, viewerTeam),
     mode: state.mode,
     packCount: state.packCount,

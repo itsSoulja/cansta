@@ -4,18 +4,19 @@ import { useAnchor } from '../anim/anchors.jsx';
 
 // An opponent's side of the table: nameplate, a fan of face-down cards, and
 // whatever they have laid down, so you can read their melds at a glance.
-export function Seat({ position, name, count, active, team, melds, redThrees, hiddenIds, showMelds, teamLabel }) {
+export function Seat({ position, name, count, active, away, team, melds, redThrees, hiddenIds, showMelds, teamLabel }) {
   const handAnchor = useAnchor(`hand:${name.playerId}`);
   const visible = Math.min(count, 16);
   const mid = (visible - 1) / 2;
 
   return (
-    <div className={`seat seat--${position}${active ? ' seat--active' : ''}`}>
+    <div className={`seat seat--${position}${active ? ' seat--active' : ''}${away ? ' seat--away' : ''}`}>
       <div className="seat__plate">
         <span className="seat__avatar">{name.label.slice(0, 1).toUpperCase()}</span>
         <span className="seat__name">
           {name.label}
           {teamLabel && <span className="seat__team">{teamLabel}</span>}
+          {away && <span className="seat__away">away</span>}
         </span>
         <span className="seat__count">{count}</span>
       </div>

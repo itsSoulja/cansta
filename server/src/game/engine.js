@@ -149,6 +149,15 @@ export function discardTakeBlocker(state, playerId) {
   return discardPickupBlocker(state, teamOf(state, playerId), state.discard[state.discard.length - 1]);
 }
 
+// Until a side has something on the table, the pile has to be earned with a
+// natural pair: two cards of the top card's rank out of your own hand. One
+// natural and a wild will not do it. Once the side has melded, it will.
+const NATURAL_PAIR = 2;
+
+export function pileNeedsNaturalPair(state, team) {
+  return !state.initialMeldMade[team];
+}
+
 // Taking the pile can be a side's opening play. Only what is laid down counts
 // toward the threshold — the top card included, the buried cards not, since
 // those merely go to hand. Groups mirror OPEN_MELD so several melds can clear
@@ -176,6 +185,16 @@ function handleTakeDiscard(state, { playerId, cardIds, groups }) {
   const takerIdx = staged.findIndex((cards) => cards.some((c) => !isWild(c) && c.rank === topCard.rank));
   if (takerIdx === -1) {
     return { ok: false, error: `Select the ${topCard.rank}s from your hand to meld that card with` };
+  }
+
+  if (pileNeedsNaturalPair(state, team)) {
+    const pair = staged[takerIdx].filter((c) => !isWild(c) && c.rank === topCard.rank);
+    if (pair.length < NATURAL_PAIR) {
+      return {
+        ok: false,
+        error: `Your side has nothing down yet, so the pile costs a natural pair — two ${topCard.rank}s from your hand, not one and a wild`,
+      };
+    }
   }
 
   const laid = [];

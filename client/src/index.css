@@ -815,3 +815,56 @@ body.has-egg .table-glow { opacity: 0.4; }
   color: var(--text-dim);
 }
 .cards-sheet__notes strong { color: var(--text); }
+
+/* --- the table code, and seats nobody is sitting in ---------------------- */
+
+/* The code has to stay legible mid-hand — it is how a player who dropped out
+   gets back to their cards, and how anyone else takes over an empty chair. */
+.code-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--plate);
+  border: 1px solid hsl(var(--felt-hue) 25% 55% / 0.25);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+}
+.code-chip:hover { border-color: var(--glow-soft); }
+.code-chip__label { color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.6rem; }
+.code-chip__code { font-weight: 800; letter-spacing: 0.18em; color: var(--glow); }
+.code-chip__hint { color: var(--text-dim); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.code-chip__hint.is-copied { color: var(--glow); }
+
+.table-top__left { display: flex; align-items: center; gap: 0.7rem; }
+
+.away-strip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: hsl(30 60% 20% / 0.85);
+  border: 1px solid hsl(30 85% 60% / 0.45);
+  color: hsl(30 90% 85%);
+  font-size: 0.74rem;
+  text-align: center;
+  max-width: min(46vw, 34rem);
+}
+.away-strip__code { color: hsl(30 95% 92%); font-weight: 700; letter-spacing: 0.05em; }
+
+.seat--away { opacity: 0.55; }
+.seat__away {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(30 85% 70%);
+}
+
+.summary-card__code {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-top: 0.6rem;
+}

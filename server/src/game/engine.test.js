@@ -569,6 +569,50 @@ describe('taking the discard pile', () => {
     expect(state.hands[p1].map((c) => c.rank).sort()).toEqual(['4', 'K', 'Q']);
   });
 
+  it('refuses one natural and a wild while the side has nothing down', () => {
+    const team = teamOf(state, p1);
+    state.initialMeldMade[team] = false;
+    const nine = card('9', 'S');
+    const wild = card('JOKER', null);
+    state.hands[p1] = [nine, wild, card('K', 'D'), card('Q', 'D')];
+    state.discard = [card('4', 'S'), card('9', 'C')];
+
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: [nine.id, wild.id],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/natural pair — two 9s/i);
+    expect(state.discard).toHaveLength(2);
+    expect(state.melds[team]['9']).toBeUndefined();
+  });
+
+  it('accepts one natural and a wild once the side has melds down', () => {
+    const team = teamOf(state, p1);
+    expect(state.initialMeldMade[team]).toBe(true);
+    const nine = card('9', 'S');
+    const wild = card('JOKER', null);
+    state.hands[p1] = [nine, wild, card('K', 'D'), card('Q', 'D')];
+    state.discard = [card('4', 'S'), card('9', 'C')];
+
+    const res = applyAction(state, {
+      type: 'TAKE_DISCARD',
+      playerId: p1,
+      cardIds: [nine.id, wild.id],
+    });
+    expect(res.ok).toBe(true);
+    expect(state.melds[team]['9'].cards).toHaveLength(3);
+    expect(state.hands[p1].map((c) => c.rank).sort()).toEqual(['4', 'K', 'Q']);
+  });
+
+  it('tells the client which side of that rule it is on', () => {
+    const team = teamOf(state, p1);
+    expect(redactStateFor(state, p1).pileNeedsNaturalPair).toBe(false);
+    state.initialMeldMade[team] = false;
+    expect(redactStateFor(state, p1).pileNeedsNaturalPair).toBe(true);
+  });
+
   it('still lets a player add a drawn card to an existing meld of that rank', () => {
     const team = teamOf(state, p1);
     state.melds[team]['9'] = meldShape([card('9', 'S'), card('9', 'H'), card('9', 'D')]);

@@ -90,6 +90,10 @@ export function Landing({ onCreate, onJoin, onNameChange, error }) {
               Join
             </button>
           </div>
+          <p className="panel__hint">
+            The same code takes you back to a game you dropped out of — type it in and you're back in your seat with
+            your cards.
+          </p>
         </section>
       </div>
 

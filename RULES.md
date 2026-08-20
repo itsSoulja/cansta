@@ -146,6 +146,9 @@ When you do take it:
 
 - you must select cards from your hand that **meld with the top card** — the top
   card always starts a fresh meld and never joins an existing one;
+- **until your side has melded, that means a natural pair**: two cards of the top
+  card's rank out of your own hand. One natural and a wild is refused. Once the
+  side has something on the table, one and a wild is enough;
 - **only the top card is melded**; the whole rest of the pile goes to your hand;
 - black 3s cannot be melded off the pile;
 - **taking the pile may be your side's opening play.** Only what you actually lay
@@ -238,6 +241,31 @@ whoever was caught holding them.
 
 ---
 
+## 10. Seats, and getting back to one
+
+A seat belongs to a **player id**, not to a connection. The browser tab mints
+that id once and keeps it for as long as the tab is open, so a reload arrives
+claiming the seat it just left.
+
+- **Before the game is dealt**, dropping out gives the seat up: it goes back in
+  the pool for the next arrival, and the host passes on if it was theirs.
+- **Once cards are out**, the seat is held. It keeps its hand, its melds and its
+  place in the turn order, and the table shows it as *away*. Nobody may play for
+  an absent player, so the turn simply waits on them.
+- **Coming back**: a reload does it by itself. Failing that — a closed tab, a
+  different device — the table code is on screen all game; typing it on the
+  landing page sits you down in the empty chair, hand and all. Whoever takes it
+  over inherits the id the cards were dealt to.
+- A started table with **every seat still held** turns newcomers away.
+- Rooms only exist in the server's memory. One with **nobody connected for 30
+  minutes** is swept, and a server restart drops every game in progress.
+
+*`rooms/roomManager.js` (`joinRoom`, `detachSocket`, `sweepAbandonedRooms`);
+`server/src/index.js` for the socket half; `client/src/session.js` and
+`hooks/useGame.js` for the tab's side of it.*
+
+---
+
 ## House rules
 
 Cansta is not tournament Canasta. These are deliberate simplifications —
@@ -260,9 +288,14 @@ check before "fixing" one.
    partner.
 7. **Hand size is 14 regardless of pack count**, and there is no separate
    requirement tying canastas to the number of packs.
-8. **No reconnect.** Players are keyed by socket id, so a refresh frees the seat
-   and orphans that hand. Rooms are in memory only — a server restart drops every
-   game in progress.
+8. **The pile costs a natural pair before you have opened.** Standard Canasta
+   lets a wild help you into an unfrozen pile whatever you have down; here the
+   first pickup of the round has to be paid for with two real cards of that rank.
+9. **A seat is held, not given away.** Losing the connection mid-hand keeps the
+   seat and its cards; a reload walks back into it, and anyone with the table
+   code can take over a chair that has been left empty (§10). Rooms are still in
+   memory only — a server restart drops every game in progress, and a table with
+   nobody at it is swept after 30 minutes.
 
 ---
 
@@ -277,7 +310,8 @@ check before "fixing" one.
 | `game/state.js` | Dealing, seating, turn order, who holds the deal |
 | `game/engine.js` | **The turn rules** — every action, the pile checks, going out, round end |
 | `game/engine.test.js` | The executable statement of most of the above |
-| `rooms/roomManager.js` | Seat counts per mode, pack-count policy |
+| `rooms/roomManager.js` | Seat counts per mode, pack-count policy, **who holds a seat** across a lost connection |
+| `rooms/rooms.test.js` | The executable statement of the seat rules |
 | `rooms/redact.js` | Per-viewer redaction, and the pile hints it derives *from the engine* |
 
 When adding a rule it belongs in `server/src/game/`, never in `Table.jsx`. If the

@@ -107,6 +107,11 @@ export function RulesBook({ onClose }) {
               Instead of drawing, you can take the <em>whole</em> pile — but you must meld its top card straight away,
               with cards from your hand. Everything buried underneath goes into your hand.
             </p>
+            <p>
+              <strong>Before your side has melded</strong>, the top card has to be matched by a{' '}
+              <strong>natural pair</strong> — two cards of that rank out of your own hand. One card and a wild will not
+              buy the pile. Once your side has something on the table, one and a wild is enough.
+            </p>
             <p className="rules-book__note">The pile is closed to you when:</p>
             <ul className="rules-book__list">
               <li>the top card is a <strong>wild</strong> or <strong>any three</strong>;</li>
@@ -156,8 +161,21 @@ export function RulesBook({ onClose }) {
               <li>Only the top card gets melded on a pickup; the rest of the pile simply goes to your hand.</li>
               <li>Black threes block the next player only. There is no frozen pile.</li>
               <li>Taking the pile can be your opening play, if what you lay down clears the threshold.</li>
+              <li>Your first pickup of the round costs a natural pair; after your side has melded, one and a wild does it.</li>
               <li>In 2v2 you do not need your partner's permission to go out.</li>
             </ul>
+          </Section>
+
+          <Section title="If you drop out">
+            <p>
+              Reloading the page does not cost you your seat: the tab remembers who you are and walks straight back to
+              your cards. Close the tab and the seat still waits — it keeps the hand it was dealt, and the table shows
+              the code all game. Type that code in on the landing screen and you sit back down where you were.
+            </p>
+            <p className="rules-book__note">
+              Nobody can play a hand for an absent player, so the table simply waits on them. A table with nobody at it
+              is cleared after half an hour.
+            </p>
           </Section>
         </div>
       </div>
